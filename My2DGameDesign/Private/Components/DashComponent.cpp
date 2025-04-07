@@ -5,12 +5,14 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/AfterimageComponent.h"
-#include "PaperFlipbookComponent.h"
 #include "Engine/World.h"
 #include "TimerManager.h" // 确保包含TimerManager
 #include "EnhancedInputComponent.h" // 包含增强输入头文件
-#include "PaperZDCharacter_SpriteHero.h" // 需要角色类来获取 Listener
+//#include "PaperZDCharacter_SpriteHero.h" // 需要角色类来获取 Listener
+#include "Interfaces/ActionInterruptSource.h"
+#include "Interfaces/AnimationStateProvider.h"
 #include "Interfaces/CharacterAnimationStateListener.h" // 需要监听器接口
+#include "Interfaces/FacingDirectionProvider.h"
 
 // 构造函数
 UDashComponent::UDashComponent()
@@ -36,10 +38,9 @@ void UDashComponent::BeginPlay()
 	{
 		OwnerMovementComponent = OwnerCharacter->GetCharacterMovement();
         OwnerAfterimageComponent = OwnerCharacter->FindComponentByClass<UAfterimageComponent>();
-		OwnerSpriteComponent = OwnerCharacter->FindComponentByClass<UPaperFlipbookComponent>();
+		
 
 		if (!OwnerMovementComponent.IsValid()) { UE_LOG(LogTemp, Error, TEXT("DashComponent: Owner '%s' does not have a CharacterMovementComponent!"), *OwnerCharacter->GetName()); }
-        if (!OwnerSpriteComponent.IsValid()) { UE_LOG(LogTemp, Warning, TEXT("DashComponent: Owner '%s' does not have a PaperFlipbookComponent (needed for direction)!"), *OwnerCharacter->GetName()); }
 		if (!OwnerAfterimageComponent.IsValid()) { UE_LOG(LogTemp, Log, TEXT("DashComponent: Owner '%s' does not have an AfterimageComponent (optional)."), *OwnerCharacter->GetName()); }
 
 		if(OwnerMovementComponent.IsValid())
@@ -107,99 +108,121 @@ void UDashComponent::ExecuteDashLogic()
         UE_LOG(LogTemp, Warning, TEXT("DashComponent::ExecuteDashLogic: OwnerCharacter or MovementComponent is invalid."));
         return;
     }
-
-	if (OwnerSpriteComponent.IsValid()) { DashDirectionMultiplier = OwnerSpriteComponent->GetRelativeScale3D().X >= 0.0f ? 1.0f : -1.0f; }
-    else { DashDirectionMultiplier = 1.0f; UE_LOG(LogTemp, Warning, TEXT("DashComponent::ExecuteDashLogic: No valid sprite found, using default forward direction (1.0).")); }
+	
+	//if (OwnerSpriteComponent.IsValid()) { DashDirectionMultiplier = OwnerSpriteComponent->GetRelativeScale3D().X >= 0.0f ? 1.0f : -1.0f; }
+  //  else { DashDirectionMultiplier = 1.0f; UE_LOG(LogTemp, Warning, TEXT("DashComponent::ExecuteDashLogic: No valid sprite found, using default forward direction (1.0).")); }
 
 	PerformDash();
 }
-
-// PerformDash: 执行冲刺效果并推送状态
 void UDashComponent::PerformDash()
 {
-	
-	if (!OwnerCharacter.IsValid() || !OwnerMovementComponent.IsValid() || !GetWorld()) return;
-	// --- 通过 Owning Character 广播打断事件 ---
-	APaperZDCharacter_SpriteHero* OwnerHero = Cast<APaperZDCharacter_SpriteHero>(OwnerCharacter.Get());
-	if (OwnerHero)
-	{
-		OwnerHero->OnActionWillInterrupt.Broadcast();
-	}
-	// --- 广播结束 ---
-	// 获取 Listener
-    TScriptInterface<ICharacterAnimationStateListener> Listener = nullptr;
-    APaperZDCharacter_SpriteHero* Hero = Cast<APaperZDCharacter_SpriteHero>(OwnerCharacter.Get()); // 直接 Cast
-    if(Hero) { Listener = Hero->GetAnimationStateListener(); }
+    AActor* OwnerActor = GetOwner();
+    // 确保 Owner 和 MovementComponent 有效 (BeginPlay 中应该已经检查过，但再次检查更安全)
+    if (!OwnerActor || !OwnerMovementComponent.IsValid() || !GetWorld()) return;
 
+    // --- 1. 获取方向 (通过 IFacingDirectionProvider) ---
+    FVector DashDirection = FVector::ForwardVector; // 默认值
+    IFacingDirectionProvider* DirectionProvider = Cast<IFacingDirectionProvider>(OwnerActor);
+    if (DirectionProvider)
+    {
+        DashDirection = IFacingDirectionProvider::Execute_GetFacingDirection(OwnerActor);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("DashComponent: Owner '%s' does not implement IFacingDirectionProvider. Falling back to ActorForwardVector."), *OwnerActor->GetName());
+        DashDirection = OwnerActor->GetActorForwardVector(); // 备用逻辑
+    }
+
+    // --- 2. 广播中断 (通过 IActionInterruptSource) ---
+    IActionInterruptSource* InterruptSource = Cast<IActionInterruptSource>(OwnerActor);
+    if (InterruptSource)
+    {
+        // 使用 Execute_ 调用更安全，特别是对于蓝图实现
+        IActionInterruptSource::Execute_BroadcastActionInterrupt(OwnerActor);
+    }
+    // else: 如果 Owner 不能广播中断，也无妨，继续执行
+
+    // --- 3. 获取动画监听器 (通过 IAnimationStateProvider) ---
+    TScriptInterface<ICharacterAnimationStateListener> Listener = nullptr; // 初始化为无效
+    IAnimationStateProvider* AnimProvider = Cast<IAnimationStateProvider>(OwnerActor);
+    if (AnimProvider)
+    {
+        Listener = IAnimationStateProvider::Execute_GetAnimStateListener(OwnerActor);
+        // 再次检查返回的接口是否真的有效
+        if (!Listener.GetInterface())
+        {
+             UE_LOG(LogTemp, Warning, TEXT("DashComponent: Owner '%s' provided an invalid Animation Listener via interface."), *OwnerActor->GetName());
+             Listener = nullptr; // 确保是无效的
+        }
+    }
+    // else: 如果 Owner 不能提供监听器，也无妨，只是动画状态不会被推送
+
+    // --- 4. 更新自身状态 ---
     bool bWasDashing = bIsDashing;
-	bIsDashing = true;
-	bCanDash = false;
-    UE_LOG(LogTemp, Log, TEXT("DashComponent: Performing Dash..."));
+    bIsDashing = true;
+    bCanDash = false;
+    UE_LOG(LogTemp, Log, TEXT("DashComponent: Performing Dash in direction %s..."), *DashDirection.ToString());
 
-    // 推送状态变化
+    // --- 5. 推送动画状态 (如果 Listener 有效) ---
     if (Listener && bIsDashing != bWasDashing)
     {
         Listener->Execute_OnDashStateChanged(Listener.GetObject(), true);
     }
 
-	// 保存参数
-	OriginalGroundFriction = OwnerMovementComponent->GroundFriction;
-	OriginalMaxWalkSpeed = OwnerMovementComponent->MaxWalkSpeed;
-	OriginalGravityScale = OwnerMovementComponent->GravityScale;
-
-    // 计算速度和方向
-	FVector DashDirection = OwnerCharacter->GetActorForwardVector() * DashDirectionMultiplier;
-	DashDirection.Normalize();
-	FVector TargetDashVelocity = DashDirection * CurrentDashSpeed;
-	TargetDashVelocity.Z = 0.0f;
-
-    // 修改移动组件
-	OwnerMovementComponent->GravityScale = 0.0f;
-	OwnerMovementComponent->GroundFriction = 0.0f;
+    // --- 6. 执行物理冲刺 (依赖 UCharacterMovementComponent) ---
+    OriginalGroundFriction = OwnerMovementComponent->GroundFriction;
+    OriginalMaxWalkSpeed = OwnerMovementComponent->MaxWalkSpeed;
+    OriginalGravityScale = OwnerMovementComponent->GravityScale;
+    FVector TargetDashVelocity = DashDirection.GetSafeNormal() * CurrentDashSpeed;
+    OwnerMovementComponent->GravityScale = 0.0f;
+    OwnerMovementComponent->GroundFriction = 0.0f;
     OwnerMovementComponent->StopMovementKeepPathing();
-	OwnerMovementComponent->Velocity = TargetDashVelocity;
+    OwnerMovementComponent->Velocity = TargetDashVelocity;
 
-    // 广播委托
-    OnDashStarted.Broadcast();
+    // --- 7. 广播冲刺开始事件 (给外部，如 AfterimageComponent) ---
+    OnDashStarted_Event.Broadcast();
 
-    // 激活残影
-	if (OwnerAfterimageComponent.IsValid()) { OwnerAfterimageComponent->StartSpawning(); }
-
-    // 设置计时器
+    // --- 8. 设置计时器 ---
     GetWorld()->GetTimerManager().SetTimer(DashEndTimer, this, &UDashComponent::EndDash, CurrentDashDuration, false);
     GetWorld()->GetTimerManager().SetTimer(DashCooldownTimer, this, &UDashComponent::ResetDashCooldown, CurrentDashCooldown, false);
 }
 
-// EndDash: 结束冲刺效果并推送状态
 void UDashComponent::EndDash()
 {
-	if (!OwnerCharacter.IsValid() || !OwnerMovementComponent.IsValid() || !GetWorld() || !bIsDashing) return;
+    AActor* OwnerActor = GetOwner();
+    if (!OwnerActor || !OwnerMovementComponent.IsValid() || !GetWorld() || !bIsDashing) return;
 
-	// 获取 Listener
+    // --- 1. 获取动画监听器 (通过 IAnimationStateProvider) ---
     TScriptInterface<ICharacterAnimationStateListener> Listener = nullptr;
-    APaperZDCharacter_SpriteHero* Hero = Cast<APaperZDCharacter_SpriteHero>(OwnerCharacter.Get());
-    if(Hero) { Listener = Hero->GetAnimationStateListener(); }
+    IAnimationStateProvider* AnimProvider = Cast<IAnimationStateProvider>(OwnerActor);
+    if (AnimProvider)
+    {
+        Listener = IAnimationStateProvider::Execute_GetAnimStateListener(OwnerActor);
+         if (!Listener.GetInterface()) { Listener = nullptr; } // 确保无效
+    }
 
+    // --- 2. 更新自身状态 ---
     bool bWasDashing = bIsDashing;
     bIsDashing = false;
     UE_LOG(LogTemp, Log, TEXT("DashComponent: Ending Dash."));
 
-    // 推送状态变化
-     if (Listener && bIsDashing != bWasDashing)
+    // --- 3. 推送动画状态 (如果 Listener 有效) ---
+    if (Listener && bIsDashing != bWasDashing)
     {
         Listener->Execute_OnDashStateChanged(Listener.GetObject(), false);
     }
 
-	// 停止残影
-    if (OwnerAfterimageComponent.IsValid()) { OwnerAfterimageComponent->StopSpawning(); }
+    // --- 4. 广播冲刺结束事件 (给外部，如 AfterimageComponent) ---
+    OnDashEnded_Event.Broadcast();
 
-    // 恢复移动参数
+    // --- 5. 恢复物理状态 (依赖 UCharacterMovementComponent) ---
     OwnerMovementComponent->GravityScale = OriginalGravityScale;
-	OwnerMovementComponent->GroundFriction = OriginalGroundFriction;
-	OwnerMovementComponent->MaxWalkSpeed = OriginalMaxWalkSpeed;
+    OwnerMovementComponent->GroundFriction = OriginalGroundFriction;
+    OwnerMovementComponent->MaxWalkSpeed = OriginalMaxWalkSpeed;
 
-    // 广播委托
-    OnDashEnded.Broadcast();
+    // --- 6. （可选）广播内部结束委托 ---
+    // OnDashEnded.Broadcast(); // 检查这个委托是否仍被内部或其他地方使用
+
 }
 
 // ResetDashCooldown: 冷却结束

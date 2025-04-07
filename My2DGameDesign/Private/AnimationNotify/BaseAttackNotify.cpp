@@ -3,7 +3,7 @@
 // My2DGameDesign/Private/AnimationNotify/BaseAttackNotify.cpp
 #include "AnimationNotify/BaseAttackNotify.h"
 #include "PaperZDAnimInstance.h"
-#include "PaperZDCharacter_SpriteHero.h"
+#include "Actors/PaperZDCharacter_SpriteHero.h"
 #include "Components/HeroCombatComponent.h" // 包含战斗组件头文件
 #include "TimerManager.h" // 仍然需要 Timer
 

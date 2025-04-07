@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PaperZDCharacter_SpriteHero.h" // 仍然需要角色基类来获取组件
+#include "Actors/PaperZDCharacter_SpriteHero.h" // 仍然需要角色基类来获取组件
 #include "Notifies/PaperZDAnimNotify.h"
 #include "BaseAttackNotify.generated.h"
 

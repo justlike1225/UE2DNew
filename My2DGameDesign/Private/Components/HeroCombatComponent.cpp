@@ -3,7 +3,7 @@
 #include "Components/HeroCombatComponent.h"
 #include "EnhancedInputComponent.h"
 #include "PaperZDCharacter.h"
-#include "PaperZDCharacter_SpriteHero.h"
+#include "Actors/PaperZDCharacter_SpriteHero.h"
 #include "PaperFlipbookComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -50,7 +50,10 @@ void UHeroCombatComponent::InitializeComponent()
 
 		if (!OwnerSpriteComponent.IsValid())
 		{
-			UE_LOG(LogTemp, Error, TEXT("HeroCombatComponent::InitializeComponent: OwnerSpriteComponent is NOT VALID! Attachment will fail."));
+			UE_LOG(LogTemp, Error,
+			       TEXT(
+				       "HeroCombatComponent::InitializeComponent: OwnerSpriteComponent is NOT VALID! Attachment will fail."
+			       ));
 			// 注意：这里不 return，以便后续 BeginPlay 中仍能尝试设置 NoCollision
 		}
 		else
@@ -86,7 +89,10 @@ void UHeroCombatComponent::InitializeComponent()
 				ConfigureAttackCollisionComponent(AttackHitCapsule); // 配置Profile, Response等
 				AttackHitCapsule->OnComponentBeginOverlap.AddDynamic(this, &UHeroCombatComponent::OnAttackHit);
 			}
-			else { UE_LOG(LogTemp, Error, TEXT("HeroCombatComponent::InitializeComponent: AttackHitCapsule is NULL!")); }
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("HeroCombatComponent::InitializeComponent: AttackHitCapsule is NULL!"));
+			}
 
 
 			// 配置 ThrustAttackCapsule
@@ -99,12 +105,18 @@ void UHeroCombatComponent::InitializeComponent()
 				ConfigureAttackCollisionComponent(ThrustAttackCapsule); // 配置Profile, Response等
 				ThrustAttackCapsule->OnComponentBeginOverlap.AddDynamic(this, &UHeroCombatComponent::OnAttackHit);
 			}
-			else { UE_LOG(LogTemp, Error, TEXT("HeroCombatComponent::InitializeComponent: ThrustAttackCapsule is NULL!")); }
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("HeroCombatComponent::InitializeComponent: ThrustAttackCapsule is NULL!"));
+			}
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("HeroCombatComponent::InitializeComponent: Failed to cast GetOwner() ('%s') to APaperZDCharacter! Component cannot function correctly."), *GetNameSafe(GetOwner()));
+		UE_LOG(LogTemp, Error,
+		       TEXT(
+			       "HeroCombatComponent::InitializeComponent: Failed to cast GetOwner() ('%s') to APaperZDCharacter! Component cannot function correctly."
+		       ), *GetNameSafe(GetOwner()));
 	}
 }
 
@@ -131,13 +143,16 @@ void UHeroCombatComponent::BeginPlay()
 
 	// --- 在 BeginPlay 开头强制设置碰撞为 NoCollision ---
 	// 这是为了解决初始化后期被蓝图或其他系统意外覆盖回 QueryOnly 的问题
-	if (AttackHitBox) {
+	if (AttackHitBox)
+	{
 		AttackHitBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
-	if (AttackHitCapsule) {
+	if (AttackHitCapsule)
+	{
 		AttackHitCapsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
-	if (ThrustAttackCapsule) {
+	if (ThrustAttackCapsule)
+	{
 		ThrustAttackCapsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 	// --- 强制设置结束 ---
@@ -157,7 +172,8 @@ void UHeroCombatComponent::BeginPlay()
 		CurrentSwordBeamInitialSpeed = CombatSettings->SwordBeamInitialSpeed;
 		CurrentSwordBeamDamage = CombatSettings->SwordBeamDamage;
 		CurrentSwordBeamLifeSpan = CombatSettings->SwordBeamLifeSpan;
-		UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: Combat settings loaded from DA %s"), *CombatSettings->GetName());
+		UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: Combat settings loaded from DA %s"),
+		       *CombatSettings->GetName());
 	}
 	else
 	{
@@ -199,13 +215,18 @@ void UHeroCombatComponent::BindInputActions_Implementation(UEnhancedInputCompone
 	if (EnhancedInputComponent && ComboAttackAction)
 	{
 		EnhancedInputComponent->BindAction(ComboAttackAction, ETriggerEvent::Started, this,
-										   &UHeroCombatComponent::HandleAttackInputTriggered);
+		                                   &UHeroCombatComponent::HandleAttackInputTriggered);
 		// UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: Bound ComboAttackAction ('%s')"), *GetNameSafe(ComboAttackAction)); // 可以保留这个Log用于确认绑定
 	}
 	else
 	{
-		if (!EnhancedInputComponent) UE_LOG(LogTemp, Error, TEXT("HeroCombatComponent::BindInputActions - EnhancedInputComponent is NULL!"));
-		if (!ComboAttackAction) UE_LOG(LogTemp, Warning, TEXT("HeroCombatComponent::BindInputActions - ComboAttackAction is not assigned!"));
+		if (!EnhancedInputComponent) UE_LOG(LogTemp, Error,
+		                                    TEXT(
+			                                    "HeroCombatComponent::BindInputActions - EnhancedInputComponent is NULL!"
+		                                    ));
+		if (!ComboAttackAction) UE_LOG(LogTemp, Warning,
+		                               TEXT("HeroCombatComponent::BindInputActions - ComboAttackAction is not assigned!"
+		                               ));
 	}
 }
 
@@ -300,7 +321,8 @@ void UHeroCombatComponent::SpawnSwordBeam()
 {
 	if (!OwnerCharacter.IsValid() || !OwnerSpriteComponent.IsValid() || !CurrentSwordBeamClass || !GetWorld())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("HeroCombatComponent::SpawnSwordBeam - Cannot spawn projectile due to invalid prerequisites."));
+		UE_LOG(LogTemp, Warning,
+		       TEXT("HeroCombatComponent::SpawnSwordBeam - Cannot spawn projectile due to invalid prerequisites."));
 		return;
 	}
 
@@ -337,7 +359,8 @@ void UHeroCombatComponent::SpawnSwordBeam()
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("HeroCombatComponent: Failed to spawn Sword Beam Actor of class '%s'!"), *GetNameSafe(CurrentSwordBeamClass));
+		UE_LOG(LogTemp, Error, TEXT("HeroCombatComponent: Failed to spawn Sword Beam Actor of class '%s'!"),
+		       *GetNameSafe(CurrentSwordBeamClass));
 	}
 }
 
@@ -350,7 +373,8 @@ void UHeroCombatComponent::StartAttackCooldown()
 		// 确保不会重复设置冷却计时器
 		if (!AttackCooldownTimer.IsValid())
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("HeroCombatComponent: Starting Ground Attack Cooldown for %.2f seconds"), CurrentGroundAttackCooldownDuration);
+			UE_LOG(LogTemp, Verbose, TEXT("HeroCombatComponent: Starting Ground Attack Cooldown for %.2f seconds"),
+			       CurrentGroundAttackCooldownDuration);
 			GetWorld()->GetTimerManager().SetTimer(
 				AttackCooldownTimer, this, &UHeroCombatComponent::OnAttackCooldownFinished,
 				CurrentGroundAttackCooldownDuration, false);
@@ -415,7 +439,8 @@ void UHeroCombatComponent::OnAttackHit(
 	const FHitResult& SweepResult)
 {
 	// 检查基本有效性，以及确保不会命中自己
-	if (!OwnerCharacter.IsValid() || !OtherActor || OtherActor == OwnerCharacter.Get() || !OverlappedComponent || !OtherComp)
+	if (!OwnerCharacter.IsValid() || !OtherActor || OtherActor == OwnerCharacter.Get() || !OverlappedComponent || !
+		OtherComp)
 	{
 		return;
 	}
@@ -427,9 +452,12 @@ void UHeroCombatComponent::OnAttackHit(
 	FName HitCompTag = NAME_None; // 用于识别是哪个攻击形状命中了
 
 	// 获取命中形状的标签
-	if (OverlappedComponent->ComponentHasTag(AttackShapeNames::AttackHitBox)) HitCompTag = AttackShapeNames::AttackHitBox;
-	else if (OverlappedComponent->ComponentHasTag(AttackShapeNames::AttackHitCapsule)) HitCompTag = AttackShapeNames::AttackHitCapsule;
-	else if (OverlappedComponent->ComponentHasTag(AttackShapeNames::ThrustAttackCapsule)) HitCompTag = AttackShapeNames::ThrustAttackCapsule;
+	if (OverlappedComponent->ComponentHasTag(AttackShapeNames::AttackHitBox)) HitCompTag =
+		AttackShapeNames::AttackHitBox;
+	else if (OverlappedComponent->ComponentHasTag(AttackShapeNames::AttackHitCapsule)) HitCompTag =
+		AttackShapeNames::AttackHitCapsule;
+	else if (OverlappedComponent->ComponentHasTag(AttackShapeNames::ThrustAttackCapsule)) HitCompTag =
+		AttackShapeNames::ThrustAttackCapsule;
 
 	// 如果命中的不是我们定义的攻击形状之一，忽略
 	if (HitCompTag == NAME_None) return;
@@ -458,11 +486,13 @@ void UHeroCombatComponent::OnAttackHit(
 		}
 
 		UGameplayStatics::ApplyPointDamage(
-			OtherActor, DamageToApply, (SweepResult.ImpactPoint - OwnerCharacter->GetActorLocation()).GetSafeNormal(), SweepResult,
+			OtherActor, DamageToApply, (SweepResult.ImpactPoint - OwnerCharacter->GetActorLocation()).GetSafeNormal(),
+			SweepResult,
 			DamageInstigatorController, OwnerCharacter.Get(), UDamageType::StaticClass()
 		);
 
-		UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: Applied %.1f damage to %s using shape %s."), DamageToApply, *OtherActor->GetName(), *HitCompTag.ToString());
+		UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: Applied %.1f damage to %s using shape %s."), DamageToApply,
+		       *OtherActor->GetName(), *HitCompTag.ToString());
 
 		// 可选：如果希望攻击命中一次后就失效，可以在这里调用 DeactivateCurrentAttackCollision();
 		// DeactivateCurrentAttackCollision();
@@ -473,7 +503,8 @@ void UHeroCombatComponent::OnAttackHit(
 // --- AnimNotify 调用的函数 ---
 void UHeroCombatComponent::EnableComboInput()
 {
-	if (OwnerCharacter.IsValid() && OwnerCharacter->GetCharacterMovement() && !OwnerCharacter->GetCharacterMovement()->IsFalling() &&
+	if (OwnerCharacter.IsValid() && OwnerCharacter->GetCharacterMovement() && !OwnerCharacter->GetCharacterMovement()->
+		IsFalling() &&
 		!bIsPerformingAirAttack && !AttackCooldownTimer.IsValid() && ComboCount < CurrentMaxGroundComboCount)
 	{
 		bCanCombo = true;
@@ -493,7 +524,8 @@ void UHeroCombatComponent::CloseComboWindowAndSetupResetTimer()
 	{
 		if (GetWorld() && CurrentComboResetDelay > 0)
 		{
-			GetWorld()->GetTimerManager().SetTimer(ResetComboTimer, this, &UHeroCombatComponent::ResetComboState, CurrentComboResetDelay, false);
+			GetWorld()->GetTimerManager().SetTimer(ResetComboTimer, this, &UHeroCombatComponent::ResetComboState,
+			                                       CurrentComboResetDelay, false);
 		}
 		else if (GetWorld() && CurrentComboResetDelay <= 0)
 		{
@@ -532,8 +564,14 @@ void UHeroCombatComponent::ActivateAttackCollision(FName ShapeIdentifier, float 
 
 	// 根据标识符查找对应的碰撞体组件
 	if (ShapeIdentifier == AttackShapeNames::AttackHitBox && AttackHitBox) { ShapeToActivate = AttackHitBox.Get(); }
-	else if (ShapeIdentifier == AttackShapeNames::AttackHitCapsule && AttackHitCapsule) { ShapeToActivate = AttackHitCapsule.Get(); }
-	else if (ShapeIdentifier == AttackShapeNames::ThrustAttackCapsule && ThrustAttackCapsule) { ShapeToActivate = ThrustAttackCapsule.Get(); }
+	else if (ShapeIdentifier == AttackShapeNames::AttackHitCapsule && AttackHitCapsule)
+	{
+		ShapeToActivate = AttackHitCapsule.Get();
+	}
+	else if (ShapeIdentifier == AttackShapeNames::ThrustAttackCapsule && ThrustAttackCapsule)
+	{
+		ShapeToActivate = ThrustAttackCapsule.Get();
+	}
 
 	if (ShapeToActivate)
 	{
@@ -543,12 +581,17 @@ void UHeroCombatComponent::ActivateAttackCollision(FName ShapeIdentifier, float 
 		// 设置定时器，在 Duration 时间后调用 DeactivateCurrentAttackCollision
 		if (GetWorld())
 		{
-			GetWorld()->GetTimerManager().SetTimer(AttackCollisionTimer, this, &UHeroCombatComponent::DeactivateCurrentAttackCollision, Duration, false);
+			GetWorld()->GetTimerManager().SetTimer(AttackCollisionTimer, this,
+			                                       &UHeroCombatComponent::DeactivateCurrentAttackCollision, Duration,
+			                                       false);
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("HeroCombatComponent::ActivateAttackCollision - Could not find or activate shape with identifier '%s'."), *ShapeIdentifier.ToString());
+		UE_LOG(LogTemp, Warning,
+		       TEXT(
+			       "HeroCombatComponent::ActivateAttackCollision - Could not find or activate shape with identifier '%s'."
+		       ), *ShapeIdentifier.ToString());
 	}
 }
 
@@ -572,9 +615,24 @@ void UHeroCombatComponent::DeactivateCurrentAttackCollision()
 // --- 辅助函数 ---
 TScriptInterface<ICharacterAnimationStateListener> UHeroCombatComponent::GetAnimListener() const
 {
-	if (APaperZDCharacter_SpriteHero* OwnerHero = Cast<APaperZDCharacter_SpriteHero>(OwnerCharacter.Get()))
+	TScriptInterface<ICharacterAnimationStateListener> Listener = nullptr; // 初始化为无效
+	if (IAnimationStateProvider* AnimProvider = Cast<IAnimationStateProvider>(GetOwner()))
 	{
-		return OwnerHero->GetAnimationStateListener();
+		Listener = IAnimationStateProvider::Execute_GetAnimStateListener(GetOwner());
+		// 再次检查返回的接口是否真的有效
+		if (!Listener.GetInterface())
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("HeroCombatComponent: Owner '%s' provided an invalid Animation Listener via interface."),
+			       *GetNameSafe(GetOwner()));
+			return nullptr; // 确保是无效的
+		}
+		else { return Listener; } // 返回有效的监听器
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("HeroCombatComponent: Owner '%s' does not implement IAnimationStateProvider!"),
+		       *GetNameSafe(GetOwner()));
 	}
 	return nullptr;
 }
@@ -600,7 +658,10 @@ void UHeroCombatComponent::HandleActionInterrupt()
 	// 如果正在攻击，则重置状态并关闭碰撞
 	if (ComboCount > 0 || bIsPerformingAirAttack)
 	{
-		UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: HandleActionInterrupt received during combat. Resetting state and deactivating collision."));
+		UE_LOG(LogTemp, Log,
+		       TEXT(
+			       "HeroCombatComponent: HandleActionInterrupt received during combat. Resetting state and deactivating collision."
+		       ));
 		ResetComboState();
 		DeactivateCurrentAttackCollision();
 	}

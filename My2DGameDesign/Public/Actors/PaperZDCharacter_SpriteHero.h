@@ -4,6 +4,9 @@
 #include "CoreMinimal.h"
 #include "InputActionValue.h" // 包含输入值结构体
 #include "PaperZDCharacter.h" // 包含基类
+#include "Interfaces/ActionInterruptSource.h"
+#include "Interfaces/AnimationStateProvider.h"
+#include "Interfaces/FacingDirectionProvider.h"
 #include "UObject/ScriptInterface.h" // 包含 TScriptInterface
 #include "PaperZDCharacter_SpriteHero.generated.h"
 
@@ -28,13 +31,19 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnActionInterruptSignature);
  * 集成了移动、动画以及通过组件实现的核心能力（冲刺、战斗、残影）。
  */
 UCLASS()
-class MY2DGAMEDESIGN_API APaperZDCharacter_SpriteHero : public APaperZDCharacter
+class MY2DGAMEDESIGN_API APaperZDCharacter_SpriteHero : public APaperZDCharacter,public IFacingDirectionProvider, public IActionInterruptSource,   // <-- 新增
+                                                         public IAnimationStateProvider  // <-- 新增
 {
     GENERATED_BODY()
 
 public:
+  
     // 构造函数
     APaperZDCharacter_SpriteHero();
+
+    // --- IFacingDirectionProvider 接口实现 ---
+    // BlueprintNativeEvent 需要一个 _Implementation 函数在 C++ 中实现
+    virtual FVector GetFacingDirection_Implementation() const override;
     /** 当一个高优先级动作（如跳跃、冲刺）将要开始，可能会打断其他动作时广播 */
     UPROPERTY(BlueprintAssignable, Category = "Character|Events")
     FOnActionInterruptSignature OnActionWillInterrupt;
@@ -49,6 +58,12 @@ public:
     UHeroCombatComponent* GetHeroCombatComponent() const { return CombatComponent; }
 
     
+    // IActionInterruptSource
+    virtual void BroadcastActionInterrupt_Implementation() override; // 注意是 _Implementation
+
+    // IAnimationStateProvider
+    virtual TScriptInterface<ICharacterAnimationStateListener> GetAnimStateListener_Implementation() const override; // 注意是 _Implementation
+
 
     // --- 状态查询 ---
     /** 判断角色是否正在根据输入尝试行走 */
@@ -59,13 +74,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "Movement")
     bool IsRunning() const { return bIsRunning; }
 
-    /**
-     * @brief 获取缓存的动画状态监听器接口。
-     * 组件可以通过此函数获取接口，以便推送状态更新。
-     * @return 返回 TScriptInterface<ICharacterAnimationStateListener>。如果动画实例未实现接口或无效，则返回的接口无效。
-     */
-    UFUNCTION(BlueprintPure, Category = "Animation")
-    TScriptInterface<ICharacterAnimationStateListener> GetAnimationStateListener() const { return AnimationStateListener; }
+    
 
 
 protected:
@@ -167,6 +176,6 @@ protected:
     void SetupCamera();
    
     /** 根据输入方向设置角色的 Sprite 朝向 */
-    void SetDirection(float Direction) const;
+    void SetDirection(float Direction)  const;
 
 };

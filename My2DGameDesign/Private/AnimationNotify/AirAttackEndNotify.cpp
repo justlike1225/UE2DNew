@@ -1,6 +1,6 @@
 #include "AnimationNotify/AirAttackEndNotify.h" // 头文件
 #include "PaperZDAnimInstance.h"               // 动画实例基类
-#include "PaperZDCharacter_SpriteHero.h"       // 角色类
+#include "Actors/PaperZDCharacter_SpriteHero.h"       // 角色类
 #include "Components/HeroCombatComponent.h"    // 战斗组件
 
 void UAirAttackEndNotify::OnReceiveNotify_Implementation(UPaperZDAnimInstance* OwningInstance) const

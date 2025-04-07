@@ -1,6 +1,6 @@
 // My2DGameDesign/Private/AfterImageActor.cpp
 
-#include "AfterImageActor.h"
+#include "Actors/AfterImageActor.h"
 #include "PaperFlipbookComponent.h"
 #include "PaperFlipbook.h"
 #include "Materials/MaterialInstanceDynamic.h"

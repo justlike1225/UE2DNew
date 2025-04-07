@@ -1,5 +1,5 @@
 #include "AnimationNotify/EnableComboNotify.h" // 包含对应的头文件
-#include "PaperZDCharacter_SpriteHero.h" // 需要获取角色类
+#include "Actors/PaperZDCharacter_SpriteHero.h" // 需要获取角色类
 #include "Components/HeroCombatComponent.h" // 需要获取战斗组件
 #include "PaperZDAnimInstance.h" // 动画实例基类
 

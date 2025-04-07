@@ -30,4 +30,4 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Input Binding") // BlueprintNativeEvent 允许C++和蓝图都实现
 	void BindInputActions(UEnhancedInputComponent* EnhancedInputComponent);
 	virtual void BindInputActions_Implementation(UEnhancedInputComponent* EnhancedInputComponent) = 0; // C++ 纯虚函数，强制实现
-};
+};	

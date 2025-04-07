@@ -4,8 +4,9 @@
 #include "PaperFlipbookComponent.h"
 #include "PaperFlipbook.h"
 #include "TimerManager.h"
-#include "AfterImageActor.h" 
+#include "Actors/AfterImageActor.h" 
 #include "Components/AfterImagePoolComponent.h"
+#include "Components/DashComponent.h"
 #include "DataAssets/HeroFXSettingsDA.h"
 #include "GameFramework/GameModeBase.h"
 #include "Kismet/GameplayStatics.h"
@@ -36,6 +37,18 @@ void UAfterimageComponent::BeginPlay()
     AActor* Owner = GetOwner();
     if(Owner)
     {
+    	UDashComponent* DashComp = Owner->FindComponentByClass<UDashComponent>();
+    	if (DashComp)
+    	{
+    		// 绑定到 DashComponent 的事件
+    		DashComp->OnDashStarted_Event.AddDynamic(this, &UAfterimageComponent::StartSpawning);
+    		DashComp->OnDashEnded_Event.AddDynamic(this, &UAfterimageComponent::StopSpawning);
+    		UE_LOG(LogTemp, Log, TEXT("AfterimageComponent bound to DashComponent events."));
+    	}
+    	else
+    	{
+    		UE_LOG(LogTemp, Warning, TEXT("AfterimageComponent: Could not find DashComponent on owner '%s' to bind events."), *Owner->GetName());
+    	}
         // 查找拥有者Actor的UPaperFlipbookComponent组件
         OwnerSpriteComponent = Owner->FindComponentByClass<UPaperFlipbookComponent>();
         if(!OwnerSpriteComponent.IsValid())

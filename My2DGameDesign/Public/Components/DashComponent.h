@@ -16,7 +16,8 @@ class UInputAction; // <-- 前向声明输入动作类
 class UEnhancedInputComponent; // <-- 前向声明增强输入组件
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDashStateChangedSignature);
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDashStartedSignature);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDashEndedSignature);
 // --- 让组件继承 IInputBindingComponent ---
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class MY2DGAMEDESIGN_API UDashComponent : public UActorComponent, public IInputBindingComponent
@@ -25,7 +26,13 @@ class MY2DGAMEDESIGN_API UDashComponent : public UActorComponent, public IInputB
 
 public:
 	UDashComponent();
+	// 冲刺开始时广播
+	UPROPERTY(BlueprintAssignable, Category = "Dash|Events")
+	FOnDashStartedSignature OnDashStarted_Event; //改名以区分之前的内部委托
 
+	// 冲刺结束时广播
+	UPROPERTY(BlueprintAssignable, Category = "Dash|Events")
+	FOnDashEndedSignature OnDashEnded_Event;
 	// --- 从 Character 移过来的输入动作资产 ---
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> DashAction; // <-- 在这里定义 DashAction
@@ -82,8 +89,7 @@ private:
     TWeakObjectPtr<UCharacterMovementComponent> OwnerMovementComponent;
     UPROPERTY()
     TWeakObjectPtr<UAfterimageComponent> OwnerAfterimageComponent;
-    UPROPERTY()
-    TWeakObjectPtr<UPaperFlipbookComponent> OwnerSpriteComponent;
+    
     float OriginalGroundFriction = 8.0f;
     float OriginalMaxWalkSpeed = 600.0f;
     float OriginalGravityScale = 1.0f;

@@ -1,7 +1,7 @@
 ﻿// My2DGameDesign/Private/Components/AfterImagePoolComponent.cpp
 
 #include "Components/AfterImagePoolComponent.h"
-#include "AfterImageActor.h" // 包含Actor头文件
+#include "Actors/AfterImageActor.h" // 包含Actor头文件
 #include "Engine/World.h"    // 需要 GetWorld()
 
 UAfterImagePoolComponent::UAfterImagePoolComponent()

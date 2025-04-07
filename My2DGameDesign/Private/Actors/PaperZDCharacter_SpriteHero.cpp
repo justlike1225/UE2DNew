@@ -1,4 +1,4 @@
-#include "PaperZDCharacter_SpriteHero.h"
+#include "Actors/PaperZDCharacter_SpriteHero.h"
 #include "EnhancedInputSubsystems.h" // 输入子系统
 #include "EnhancedInputComponent.h" // 增强输入组件
 #include "GameFramework/CharacterMovementComponent.h" // 角色移动组件
@@ -7,14 +7,16 @@
 #include "PaperZDAnimInstance.h" // PaperZD 动画实例 基类
 #include "PaperZDAnimationComponent.h" // PaperZD 动画组件
 #include "Camera/CameraComponent.h" // 摄像机组件
-#include "Components/BoxComponent.h" // 盒子碰撞体
-#include "Components/CapsuleComponent.h" // 胶囊碰撞体
 #include "Components/DashComponent.h" // 冲刺组件
 #include "Components/AfterimageComponent.h" // 残影组件
 #include "Components/HeroCombatComponent.h" // 战斗组件
 #include "Interfaces/InputBindingComponent.h" // 输入绑定接口
 #include "Interfaces/CharacterAnimationStateListener.h" // 动画状态监听器接口
 #include "InputMappingContext.h" // 输入映射上下文
+
+
+
+
 // 构造函数: 创建组件和初始化默认值
 APaperZDCharacter_SpriteHero::APaperZDCharacter_SpriteHero()
 {
@@ -31,6 +33,36 @@ APaperZDCharacter_SpriteHero::APaperZDCharacter_SpriteHero()
 	InitializeMovementParameters(); // 设置移动相关变量和组件初始值
 	
 	SetupCamera(); // 创建和配置摄像机
+}
+
+// 实现接口函数
+FVector APaperZDCharacter_SpriteHero::GetFacingDirection_Implementation() const
+{
+	if (UPaperFlipbookComponent* SpriteComponent = GetSprite())
+	{
+		// 基于 Sprite Scale 的 X 值判断方向
+		bool bFacingRight = SpriteComponent->GetRelativeScale3D().X >= 0.0f;
+		return bFacingRight ? FVector::ForwardVector : -FVector::ForwardVector;
+	}
+
+	// 如果无法获取 Sprite，默认返回向前 (右)
+	UE_LOG(LogTemp, Warning, TEXT("APaperZDCharacter_SpriteHero::GetFacingDirection_Implementation: Could not get SpriteComponent, defaulting to ForwardVector."));
+	return FVector::ForwardVector;
+}
+
+// IActionInterruptSource 实现
+void APaperZDCharacter_SpriteHero::BroadcastActionInterrupt_Implementation()
+{
+	// 实现就是调用内部的委托
+	OnActionWillInterrupt.Broadcast();
+	// UE_LOG(LogTemp, Log, TEXT("%s broadcasting Action Interrupt via interface."), *GetName()); // 可选日志
+}
+
+// IAnimationStateProvider 实现
+TScriptInterface<ICharacterAnimationStateListener> APaperZDCharacter_SpriteHero::GetAnimStateListener_Implementation() const
+{
+	// 实现就是返回缓存的监听器
+	return AnimationStateListener;
 }
 
 // 初始化移动相关参数
@@ -357,19 +389,21 @@ void APaperZDCharacter_SpriteHero::OnRunCompleted(const FInputActionValue& Value
 
 
 // SetDirection: 根据输入方向翻转 Sprite
-void APaperZDCharacter_SpriteHero::SetDirection(float Direction) const
+// My2DGameDesign/Private/PaperZDCharacter_SpriteHero.cpp
+void APaperZDCharacter_SpriteHero::SetDirection(float Direction) const // 可以改回 const
 {
 	if (UPaperFlipbookComponent* SpriteComponent = GetSprite())
 	{
-        float CurrentScaleX = SpriteComponent->GetRelativeScale3D().X;
-        // 使用小阈值避免浮点数比较问题
-        float TargetScaleX = (Direction > 0.0f) ? 1.0f : -1.0f;
+		float CurrentScaleX = SpriteComponent->GetRelativeScale3D().X;
+		// 根据输入方向确定目标 Scale X (1.0 或 -1.0)
+		float TargetScaleX = (Direction > KINDA_SMALL_NUMBER) ? 1.0f : ((Direction < -KINDA_SMALL_NUMBER) ? -1.0f : CurrentScaleX); // 如果输入接近0，保持当前Scale
 
-        if (!FMath::IsNearlyEqual(CurrentScaleX, TargetScaleX))
-        {
-            FVector CurrentScale = SpriteComponent->GetRelativeScale3D();
-		    SpriteComponent->SetRelativeScale3D(FVector(TargetScaleX, CurrentScale.Y, CurrentScale.Z));
-        }
+		if (!FMath::IsNearlyEqual(CurrentScaleX, TargetScaleX))
+		{
+			FVector CurrentScale = SpriteComponent->GetRelativeScale3D();
+			SpriteComponent->SetRelativeScale3D(FVector(TargetScaleX, CurrentScale.Y, CurrentScale.Z));
+			// UE_LOG(LogTemp, Verbose, TEXT("SetDirection: Set Sprite Scale X to %.1f"), TargetScaleX); // 调试日志
+		}
 	}
 }
 
