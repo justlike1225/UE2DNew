@@ -30,13 +30,13 @@ public: // <--- 设为 Public
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     TObjectPtr<UProjectileMovementComponent> ProjectileMovement; // <--- 现在是 Public
 
-protected: // <--- Protected 成员放在这里
+protected: // <--- Protected 成员放在这里   
     // --- 内部变量 ---
     UPROPERTY() // 用于存储从外部初始化的值
-    float CurrentDamage = 0.0f;
+    float CurrentDamage = 0.0f;  
 
     // 缓存发射者的 Actor
-    UPROPERTY()
+    UPROPERTY()                       
     TWeakObjectPtr<AActor> InstigatorActor;
 
 
@@ -62,8 +62,8 @@ public: // <--- Public 函数
     void InitializeProjectile(
         const FVector& Direction,
         float Speed,
-        float Damage,
-        float LifeSpan,
+        float Damage, 
+        float LifeSpan,           
         AActor* Shooter
     );
 };

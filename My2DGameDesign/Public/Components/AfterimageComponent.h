@@ -43,15 +43,6 @@ protected:
 	UMaterialInterface* AfterImageMaterial;
 
 	
-	// 生成残影的时间间隔，单位为秒
-	UPROPERTY(EditDefaultsOnly, Category = "Afterimage Effect", meta = (ClampMin = "0.01"))
-	float AfterImageInterval = 0.05f;
-
-	
-	// 残影的生存时间，单位为秒
-	UPROPERTY(EditDefaultsOnly, Category = "Afterimage Effect", meta = (ClampMin = "0.01"))
-	float AfterImageLifetime = 0.3f;
-
 	
 	// 用于控制残影生成定时的句柄
 	FTimerHandle AfterImageSpawnTimer;

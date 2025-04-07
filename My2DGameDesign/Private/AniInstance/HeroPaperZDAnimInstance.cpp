@@ -3,6 +3,7 @@
 #include "GameFramework/CharacterMovementComponent.h" // 需要移动组件
 #include "GameFramework/Actor.h" // 需要 GetOwningActor
 #include "Engine/Engine.h" // 用于 GEngine 屏幕打印 (可选)
+#include "My2DGameDesign/My2DGameDesign.h"
 
 // OnInit: 获取移动组件引用
 void UHeroPaperZDAnimInstance::OnInit_Implementation()
@@ -116,7 +117,7 @@ void UHeroPaperZDAnimInstance::OnDashStateChanged_Implementation(bool bNewIsDash
 	this->bIsDashing = bNewIsDashing;
 	if (bIsDashing)
 	{
-		JumpToNode(FName("Dash")); // 跳转到冲刺动画节点
+		JumpToNode(AnimationJumpNodeName::Dash); // 跳转到冲刺动画节点
 	}
 }
 
@@ -127,11 +128,12 @@ void UHeroPaperZDAnimInstance::OnCombatStateChanged_Implementation(int32 NewComb
 	this->ComboCount = NewComboCount;
 }
 
+
 void UHeroPaperZDAnimInstance::OnJumpRequested_Implementation()
 {
 	// 直接跳转到名为 "Jump" 入口节点
 	UE_LOG(LogTemp, Log, TEXT("HeroPaperZDAnimInstance: OnJumpRequested_Implementation - Jumping to 'Jump' node."));
-	JumpToNode(FName("Jump"));
+	JumpToNode(AnimationJumpNodeName::Jump);
 }
 
 // 更新空中攻击状态
@@ -140,7 +142,5 @@ void UHeroPaperZDAnimInstance::OnAirAttackStateChanged_Implementation(bool bNewI
 	
 	
 	this->bIsAirAttacking = bNewIsAirAttacking;
-    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
-		FString::Printf(TEXT("HeroPaperZDAnimInstance::OnAirAttackStateChanged - Air Attacking: %s"),
-			(bNewIsAirAttacking ? TEXT("true") : TEXT("false"))));
+  
 }
