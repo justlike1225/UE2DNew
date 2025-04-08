@@ -5,10 +5,11 @@
 #include "CoreMinimal.h"
 #include "PaperZDCharacter.h" // 继承自 PaperZD 角色基类，以便使用其动画系统
 #include "Interfaces/Damageable.h" // 包含我们创建的伤害接口头文件
-#include "Interfaces/AnimationStateProvider.h" // 包含动画状态提供者接口头文件 (复用英雄的)
+#include "Interfaces/EnemyAnimationStateProvider.h"
 #include "Interfaces/FacingDirectionProvider.h" // 包含朝向提供者接口头文件
 #include "EnemyCharacterBase.generated.h"       // 包含生成的头文件
 
+class IEnemyAnimationStateListener;
 // --- 前向声明 ---
 // 告诉编译器这些类存在，但不需要知道它们的完整定义，可以减少编译依赖
 class UHealthComponent;
@@ -16,8 +17,6 @@ class UPaperZDAnimInstance;
 class AAIController;
 class UBehaviorTree;
 class UEnemyAnimInstanceBase;          // 敌人的动画实例基类
-class ICharacterAnimationStateListener; // 动画状态监听器接口 (我们先复用英雄的，之后可以换成 IEnemy...)
-
 
 /**
  * UCLASS 标记此类为 UE 的反射系统可识别。
@@ -26,7 +25,7 @@ class ICharacterAnimationStateListener; // 动画状态监听器接口 (我们�
 UCLASS(Abstract)
 class MY2DGAMEDESIGN_API AEnemyCharacterBase : public APaperZDCharacter, // 继承 PaperZD 角色
                                                public IDamageable,             // 公开继承我们创建的 IDamageable 接口
-                                               public IAnimationStateProvider, // 公开继承 IAnimationStateProvider 接口
+                                               public IEnemyAnimationStateProvider, // 公开继承 IAnimationStateProvider 接口
                                                public IFacingDirectionProvider // 公开继承 IFacingDirectionProvider 接口
 {
 	GENERATED_BODY() // UE 类所需的宏
@@ -53,8 +52,7 @@ public:
 
     // --- IAnimationStateProvider 接口实现 ---
     // 返回动画实例所实现的监听器接口。
-    virtual TScriptInterface<ICharacterAnimationStateListener> GetAnimStateListener_Implementation() const override;
-
+	virtual TScriptInterface<IEnemyAnimationStateListener> GetEnemyAnimStateListener_Implementation() const override;
     // --- IFacingDirectionProvider 接口实现 ---
     // 返回角色当前的面向向量。
     virtual FVector GetFacingDirection_Implementation() const override;
@@ -86,9 +84,9 @@ protected:
 
 	// --- 内部状态与引用 ---
 
-	/** 用于缓存动画实例实现的监听器接口，避免每次都去查找 */
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Animation", meta=(AllowPrivateAccess = "true"))
-    TScriptInterface<ICharacterAnimationStateListener> AnimationStateListener; // TScriptInterface 用于存储接口指针
+	/** 用于缓存 *敌人* 动画实例实现的监听器接口 */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Animation", meta=(AllowPrivateAccess = "true"))
+	TScriptInterface<IEnemyAnimationStateListener> AnimationStateListener; // <-- 类型改为 IEnemyAnimationStateListener
 
     /**
      * UFUNCTION() 宏标记此函数可用于委托绑定。

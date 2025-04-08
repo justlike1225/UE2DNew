@@ -1,7 +1,7 @@
 
 // My2DGameDesign/Private/Components/DashComponent.cpp
 #include "Components/DashComponent.h"
-#include "DataAssets/HeroDashSettingsDA.h"
+#include "DataAssets/HeroDA/HeroDashSettingsDA.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/AfterimageComponent.h"
@@ -10,7 +10,7 @@
 #include "EnhancedInputComponent.h" // 包含增强输入头文件
 //#include "PaperZDCharacter_SpriteHero.h" // 需要角色类来获取 Listener
 #include "Interfaces/ActionInterruptSource.h"
-#include "Interfaces/AnimationStateProvider.h"
+#include "Interfaces/HeroAnimationStateProvider.h"
 #include "Interfaces/CharacterAnimationStateListener.h" // 需要监听器接口
 #include "Interfaces/FacingDirectionProvider.h"
 
@@ -144,10 +144,10 @@ void UDashComponent::PerformDash()
 
     // --- 3. 获取动画监听器 (通过 IAnimationStateProvider) ---
     TScriptInterface<ICharacterAnimationStateListener> Listener = nullptr; // 初始化为无效
-    IAnimationStateProvider* AnimProvider = Cast<IAnimationStateProvider>(OwnerActor);
+    IHeroAnimationStateProvider* AnimProvider = Cast<IHeroAnimationStateProvider>(OwnerActor);
     if (AnimProvider)
     {
-        Listener = IAnimationStateProvider::Execute_GetAnimStateListener(OwnerActor);
+        Listener = IHeroAnimationStateProvider::Execute_GetAnimStateListener(OwnerActor);
         // 再次检查返回的接口是否真的有效
         if (!Listener.GetInterface())
         {
@@ -194,10 +194,10 @@ void UDashComponent::EndDash()
 
     // --- 1. 获取动画监听器 (通过 IAnimationStateProvider) ---
     TScriptInterface<ICharacterAnimationStateListener> Listener = nullptr;
-    IAnimationStateProvider* AnimProvider = Cast<IAnimationStateProvider>(OwnerActor);
+    IHeroAnimationStateProvider* AnimProvider = Cast<IHeroAnimationStateProvider>(OwnerActor);
     if (AnimProvider)
     {
-        Listener = IAnimationStateProvider::Execute_GetAnimStateListener(OwnerActor);
+        Listener = IHeroAnimationStateProvider::Execute_GetAnimStateListener(OwnerActor);
          if (!Listener.GetInterface()) { Listener = nullptr; } // 确保无效
     }
 

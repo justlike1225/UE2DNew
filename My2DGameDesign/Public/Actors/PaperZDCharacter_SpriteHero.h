@@ -5,7 +5,7 @@
 #include "InputActionValue.h" // 包含输入值结构体
 #include "PaperZDCharacter.h" // 包含基类
 #include "Interfaces/ActionInterruptSource.h"
-#include "Interfaces/AnimationStateProvider.h"
+#include "Interfaces/HeroAnimationStateProvider.h"
 #include "Interfaces/FacingDirectionProvider.h"
 #include "UObject/ScriptInterface.h" // 包含 TScriptInterface
 #include "PaperZDCharacter_SpriteHero.generated.h"
@@ -32,7 +32,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnActionInterruptSignature);
  */
 UCLASS()
 class MY2DGAMEDESIGN_API APaperZDCharacter_SpriteHero : public APaperZDCharacter,public IFacingDirectionProvider, public IActionInterruptSource,   // <-- 新增
-                                                         public IAnimationStateProvider  // <-- 新增
+                                                         public IHeroAnimationStateProvider  // <-- 新增
 {
     GENERATED_BODY()
 

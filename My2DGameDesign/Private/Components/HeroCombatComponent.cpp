@@ -9,7 +9,7 @@
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interfaces/CharacterAnimationStateListener.h"
-#include "DataAssets/HeroCombatSettingsDA.h"
+#include "DataAssets/HeroDA/HeroCombatSettingsDA.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/DamageType.h"
 #include "TimerManager.h"
@@ -616,9 +616,9 @@ void UHeroCombatComponent::DeactivateCurrentAttackCollision()
 TScriptInterface<ICharacterAnimationStateListener> UHeroCombatComponent::GetAnimListener() const
 {
 	TScriptInterface<ICharacterAnimationStateListener> Listener = nullptr; // 初始化为无效
-	if (IAnimationStateProvider* AnimProvider = Cast<IAnimationStateProvider>(GetOwner()))
+	if (IHeroAnimationStateProvider* AnimProvider = Cast<IHeroAnimationStateProvider>(GetOwner()))
 	{
-		Listener = IAnimationStateProvider::Execute_GetAnimStateListener(GetOwner());
+		Listener = IHeroAnimationStateProvider::Execute_GetAnimStateListener(GetOwner());
 		// 再次检查返回的接口是否真的有效
 		if (!Listener.GetInterface())
 		{

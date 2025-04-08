@@ -4,10 +4,10 @@
 #include "UObject/Interface.h"
 #include "UObject/ScriptInterface.h" // 需要 TScriptInterface
 #include "Interfaces/CharacterAnimationStateListener.h" // 需要 ICharacterAnimationStateListener
-#include "AnimationStateProvider.generated.h"
+#include "HeroAnimationStateProvider.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable) // Blueprintable 如果需要从蓝图获取
-class UAnimationStateProvider : public UInterface
+class UHeroAnimationStateProvider : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -15,7 +15,7 @@ class UAnimationStateProvider : public UInterface
 /**
  * @brief 接口，允许 Actor 提供对其动画状态监听器 (ICharacterAnimationStateListener) 的访问。
  */
-class MY2DGAMEDESIGN_API IAnimationStateProvider
+class MY2DGAMEDESIGN_API IHeroAnimationStateProvider
 {
 	GENERATED_BODY()
 public:

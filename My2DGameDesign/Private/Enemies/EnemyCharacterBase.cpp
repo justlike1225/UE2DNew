@@ -13,7 +13,7 @@
 // 引入我们将要创建的动画实例基类头文件 (虽然文件还没创建，先包含进来)
 #include "AniInstance/EnemyAnimInstanceBase.h"
 // 引入动画状态监听器接口头文件
-#include "Interfaces/CharacterAnimationStateListener.h"
+
 
 
 // 构造函数
@@ -129,12 +129,7 @@ float AEnemyCharacterBase::ApplyDamage_Implementation(float DamageAmount, AActor
     return 0.f; // 如果没有生命组件，则不受伤害
 }
 
-// IAnimationStateProvider 接口实现：返回缓存的动画监听器接口
-TScriptInterface<ICharacterAnimationStateListener> AEnemyCharacterBase::GetAnimStateListener_Implementation() const
-{
-	// 直接返回在 BeginPlay 或 Cache 函数中缓存的接口指针
-    return AnimationStateListener;
-}
+
 
 // IFacingDirectionProvider 接口实现：根据内部状态返回朝向向量
 FVector AEnemyCharacterBase::GetFacingDirection_Implementation() const
@@ -241,7 +236,7 @@ void AEnemyCharacterBase::CacheAnimationStateListener()
 		if (BaseAnimInstance)
 		{
             // 尝试将动画实例转换为我们期望的监听器接口 (这里暂时复用英雄的)
-            AnimationStateListener = TScriptInterface<ICharacterAnimationStateListener>(BaseAnimInstance);
+            AnimationStateListener = TScriptInterface<IEnemyAnimationStateListener>(BaseAnimInstance);
             // 检查转换是否成功，以及获取到的对象是否有效
             if (AnimationStateListener.GetInterface() && AnimationStateListener.GetObject())
             {
@@ -276,4 +271,9 @@ UEnemyAnimInstanceBase* AEnemyCharacterBase::GetEnemyAnimInstance() const
 		return Cast<UEnemyAnimInstanceBase>(AnimComp->GetAnimInstance());
     }
     return nullptr; // 如果无法获取或转换失败，返回空指针
+}
+TScriptInterface<IEnemyAnimationStateListener> AEnemyCharacterBase::GetEnemyAnimStateListener_Implementation() const
+{
+    // 直接返回缓存的 *敌人* 动画监听器接口
+    return AnimationStateListener;
 }

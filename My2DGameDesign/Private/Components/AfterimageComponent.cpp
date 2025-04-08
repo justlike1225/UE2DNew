@@ -7,7 +7,7 @@
 #include "Actors/AfterImageActor.h" 
 #include "Components/AfterImagePoolComponent.h"
 #include "Components/DashComponent.h"
-#include "DataAssets/HeroFXSettingsDA.h"
+#include "DataAssets/HeroDA/HeroFXSettingsDA.h"
 #include "GameFramework/GameModeBase.h"
 #include "Kismet/GameplayStatics.h"
 
