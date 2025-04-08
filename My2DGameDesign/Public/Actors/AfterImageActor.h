@@ -6,12 +6,11 @@
 #include "GameFramework/Actor.h"
 #include "AfterImageActor.generated.h"
 
-class UAfterImagePoolComponent;
+class UAfterImagePoolSubsystem;
 class UPaperFlipbookComponent;
 class UPaperFlipbook;
 class UMaterialInterface;
-class UMaterialInstanceDynamic;
-class AfterImagePoolComponent; // <--- 前向声明对象池组件
+class UMaterialInstanceDynamic;// <--- 前向声明对象池组件
 
 UCLASS()
 class MY2DGAMEDESIGN_API AAfterImageActor : public AActor
@@ -42,7 +41,7 @@ public:
 		FName InOpacityParamName,
 		float InInitialOpacity,
 		float InFadeUpdateInterval,
-		UAfterImagePoolComponent* InOwningPool // <--- 新增：传入对象池引用
+		UAfterImagePoolSubsystem* InOwningPool // <--- 新增：传入对象池引用
 	);
 
 	/**
@@ -75,7 +74,7 @@ protected:
 
 	// 指向拥有它的对象池 (弱指针防止循环引用，虽然这里可能不是严格必须，但是好习惯)
 	UPROPERTY()
-	TWeakObjectPtr<UAfterImagePoolComponent> OwningPoolPtr;
+	TWeakObjectPtr<UAfterImagePoolSubsystem> OwningPoolSubsystemPtr;
 
 	// --- 内部函数 ---
 	UFUNCTION()

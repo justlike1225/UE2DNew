@@ -4,8 +4,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "AfterimageComponent.generated.h"
-
-class UAfterImagePoolComponent;
+ class UAfterImagePoolSubsystem;
 class UHeroFXSettingsDA;
 class AAfterImageActor; 
 class UPaperFlipbookComponent;
@@ -26,7 +25,7 @@ protected:
 	TObjectPtr<UHeroFXSettingsDA> FXSettings;
 	/** @brief 指向管理残影Actor的对象池组件。会在BeginPlay时尝试查找。*/
 	UPROPERTY(Transient) // Transient表示这个属性不需要保存或加载
-	TObjectPtr<UAfterImagePoolComponent> AfterImagePool;
+	TObjectPtr<UAfterImagePoolSubsystem> AfterImagePoolSubsystemPtr;
 	// 内部使用的变量
 	float CurrentAfterImageInterval = 0.05f;
 	float CurrentAfterImageLifetime = 0.3f;

@@ -5,7 +5,7 @@
 #include "PaperFlipbook.h"
 #include "TimerManager.h"
 #include "Actors/AfterImageActor.h" 
-#include "Components/AfterImagePoolComponent.h"
+#include "MySubsystems/AfterImagePoolSubsystem.h"
 #include "Components/DashComponent.h"
 #include "DataAssets/HeroDA/HeroFXSettingsDA.h"
 #include "GameFramework/GameModeBase.h"
@@ -60,43 +60,29 @@ void UAfterimageComponent::BeginPlay()
     {
         UE_LOG(LogTemp, Error, TEXT("AfterimageComponent has no Owner Actor!"));
     }
-	// --- 查找对象池组件 (修改后的逻辑) ---
-	UWorld* World = GetWorld();
-	if (World)
+	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	if (GameInstance)
 	{
-		// 获取当前关卡的GameMode实例
-		AGameModeBase* GameMode = UGameplayStatics::GetGameMode(World); // 或者 World->GetAuthGameMode();
-		if (GameMode)
-		{
-			// 从GameMode实例上查找我们的PoolComponent
-			AfterImagePool = GameMode->FindComponentByClass<UAfterImagePoolComponent>();
-			if (AfterImagePool)
-			{
-				UE_LOG(LogTemp, Log, TEXT("AfterimageComponent: Successfully found UAfterImagePoolComponent on GameMode '%s'."), *GameMode->GetName());
-			}
-			else
-			{
-				// GameMode找到了，但上面没有PoolComponent！
-				UE_LOG(LogTemp, Error, TEXT("AfterimageComponent: Found GameMode '%s', but UAfterImagePoolComponent was NOT attached to it!"), *GameMode->GetName());
-			}
-		}
-		else
-		{
-			// 无法获取GameMode实例
-			UE_LOG(LogTemp, Error, TEXT("AfterimageComponent: Could not get GameMode instance from World!"));
-		}
+		
+		       AfterImagePoolSubsystemPtr = GameInstance->GetSubsystem<UAfterImagePoolSubsystem>(); // <--- 获取 Subsystem
+		      if (AfterImagePoolSubsystemPtr)
+			       {
+				           UE_LOG(LogTemp, Log, TEXT("AfterimageComponent: Successfully found UAfterImagePoolSubsystem on GameInstance."));
+				      }
+		       else
+			       {
+				            UE_LOG(LogTemp, Error, TEXT("AfterimageComponent: Could not find UAfterImagePoolSubsystem on GameInstance!"));
+				       }
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("AfterimageComponent: Could not get World in BeginPlay!"));
+		UE_LOG(LogTemp, Error, TEXT("AfterimageComponent: Could not get GameInstance in BeginPlay!"));
 	}
-
 	// --- 添加一个最终检查 ---
-	if (!AfterImagePool)
-	{
-		UE_LOG(LogTemp, Error, TEXT("AfterimageComponent: BeginPlay finished but AfterImagePool is STILL NULL!"));
-	}
+	if (!AfterImagePoolSubsystemPtr) { UE_LOG(LogTemp, Error, TEXT("AfterimageComponent: BeginPlay finished but AfterImagePoolSubsystemPtr is STILL NULL!")); } // <--- 修改检查
 }
+
+
 
 
 void UAfterimageComponent::StartSpawning()
@@ -145,14 +131,14 @@ void UAfterimageComponent::SpawnAfterImage()
 		return;
 	}
 	// --- 在调用前再次检查 AfterImagePool 是否有效 ---
-	if (!AfterImagePool)
+	if (!AfterImagePoolSubsystemPtr)
 	{
-		UE_LOG(LogTemp, Error, TEXT("AfterimageComponent::SpawnAfterImage: Cannot spawn because AfterImagePool is null!"));
+		UE_LOG(LogTemp, Error, TEXT("AfterimageComponent::SpawnAfterImage: Cannot spawn because AfterImagePoolSubsystemPtr is null!")); // <-- Log 修改
 		StopSpawning(); // 停止尝试生成
 		return;
 	}
 	// --- 使用对象池获取Actor ---
-	if (!AfterImagePool)
+	if (!AfterImagePoolSubsystemPtr)
 	{
 		UE_LOG(LogTemp, Error, TEXT("AfterimageComponent::SpawnAfterImage: AfterImagePool is not valid!"));
 		StopSpawning(); // 没有池就无法生成
@@ -163,8 +149,14 @@ void UAfterimageComponent::SpawnAfterImage()
 	UPaperFlipbookComponent* SpriteComp = OwnerSpriteComponent.Get();
 	FTransform SpriteTransform = SpriteComp->GetComponentTransform();
 
+	// --- 添加日志 1 ---
+	UE_LOG(LogTemp, Warning, TEXT("SpawnAfterImage: ====> Attempting to spawn via Subsystem: %p. Flipbook: %s. Material: %s"),
+		AfterImagePoolSubsystemPtr.Get(),
+		SpriteComp ? *SpriteComp->GetName() : TEXT("NULL"),
+		AfterImageMaterial ? *AfterImageMaterial->GetName() : TEXT("NULL")
+	);
 	// 调用对象池的SpawnFromPool函数
-	AAfterImageActor* GhostActor = AfterImagePool->SpawnFromPool(
+	AAfterImageActor* GhostActor = AfterImagePoolSubsystemPtr->SpawnFromPool(
 		SpriteComp->GetFlipbook(),
 		AfterImageMaterial,         // 材质仍然可以在这个组件上配置
 		CurrentAfterImageLifetime,  // 使用从DA加载的生命周期
@@ -174,10 +166,15 @@ void UAfterimageComponent::SpawnAfterImage()
 		CurrentFadeUpdateInterval   // 使用从DA加载的更新频率
 	);
 
+	// --- 添加日志 2 ---
+	UE_LOG(LogTemp, Warning, TEXT("SpawnAfterImage: <==== SpawnFromPool returned Actor: %p (%s)"),
+		GhostActor,
+		GhostActor ? *GhostActor->GetName() : TEXT("NULL")
+	);
 	if (!GhostActor)
 	{
 		// SpawnFromPool 返回 nullptr，意味着池已满或出错
-		UE_LOG(LogTemp, Warning, TEXT("AfterimageComponent: Failed to get an actor from AfterImagePool. Pool might be full or encountered an error."));
+		UE_LOG(LogTemp, Warning, TEXT("AfterimageComponent: Failed to get an actor from AfterImagePoolSubsystem...")); // <-- Log 修改
 		
 	}
 	// 注意：不再需要手动调用 GhostActor->Initialize 了，因为 SpawnFromPool 内部会调用 Activate
