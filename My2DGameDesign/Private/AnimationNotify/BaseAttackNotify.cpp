@@ -1,5 +1,3 @@
-
-
 // My2DGameDesign/Private/AnimationNotify/BaseAttackNotify.cpp
 #include "AnimationNotify/BaseAttackNotify.h"
 #include "PaperZDAnimInstance.h"

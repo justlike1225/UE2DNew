@@ -1,79 +1,84 @@
-﻿// My2DGameDesign/Public/AniInstance/EnemyAnimInstanceBase.h
-
+﻿// My2DGameDesign/Public/AniInstance/EnemyAnimInstanceBase.h (Refactored)
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PaperZDAnimInstance.h" // 继承自 PaperZD 动画实例基类
-#include "Interfaces/EnemyAnimationStateListener.h" // 包含我们定义的敌人动画监听器接口头文件
-#include "EnemyAnimInstanceBase.generated.h"       // 生成的头文件
+#include "PaperZDAnimInstance.h"
+#include "Interfaces/AnimationListener//EnemyMovementAnimListener.h" // 包含并实现通用接口
+#include "Interfaces/AnimationListener//EnemyStateAnimListener.h"    // 包含并实现通用接口
+#include "EnemyAnimInstanceBase.generated.h"
 
 // --- 前向声明 ---
-class UCharacterMovementComponent; // 角色移动组件
 class AEnemyCharacterBase;         // 敌人角色基类
+class UCharacterMovementComponent; // 角色移动组件
 
 /**
- * UCLASS 标记此类可被UE识别。
- * 它是所有敌人动画蓝图的基础 C++ 类。
+ * @brief 所有敌人动画蓝图的基础 C++ 类 (重构后)。
+ * 只包含通用状态变量，并实现通用的监听器接口 (移动、状态)。
+ * 特定能力（如攻击）的状态和接口实现应放在子类中。
  */
-UCLASS()
-class MY2DGAMEDESIGN_API UEnemyAnimInstanceBase : public UPaperZDAnimInstance, public IEnemyAnimationStateListener // 公开继承 PaperZD 基类和我们的接口
+UCLASS() // 如果不希望直接在编辑器中创建这个基类的蓝图，可以加上 Abstract
+class MY2DGAMEDESIGN_API UEnemyAnimInstanceBase : public UPaperZDAnimInstance,
+                                                 public IEnemyMovementAnimListener, // 只实现这两个通用接口
+                                                 public IEnemyStateAnimListener
 {
-	GENERATED_BODY() // UE类宏
+    GENERATED_BODY()
 
 public:
-	// 构造函数
-	UEnemyAnimInstanceBase();
+    // 构造函数
+    UEnemyAnimInstanceBase();
 
 protected:
-	// protected: 只能被本类和子类访问。
+    // --- 通用状态变量 ---
+    // 这些变量由通用接口函数更新，或在 Tick 中更新，并在动画蓝图的状态机转换条件中使用。
 
-	// --- 动画蓝图使用的状态变量 ---
-	// 这些变量将由接口函数更新，并在动画蓝图的状态机转换条件中使用。
-	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly): 让这些变量在动画蓝图编辑器中可见且只读。
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy State | Movement", meta = (AllowPrivateAccess = "true"))
+    float Speed = 0.0f; // 当前速度大小
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy State | Movement")
-	float Speed = 0.0f; // 当前速度大小
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy State | Movement", meta = (AllowPrivateAccess = "true"))
+    bool bIsFalling = true; // 是否正在下落 (初始设为 true 较安全)
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy State | Movement")
-	bool bIsFalling = false; // 是否正在下落
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy State | Movement", meta = (AllowPrivateAccess = "true"))
+    bool bIsMoving = false; // 是否正在移动
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy State | Movement")
-	bool bIsMoving = false; // 是否正在移动 (由AI或速度判断)
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy State | State", meta = (AllowPrivateAccess = "true"))
+    bool bIsHurt = false; // 是否处于受击状态
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy State | Combat")
-	bool bIsAttackingMelee = false; // 是否正在执行近战攻击动画
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy State | State", meta = (AllowPrivateAccess = "true"))
+    bool bIsDead = false; // 是否已死亡
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy State | Combat")
-	bool bIsAttackingRanged = false; // 是否正在执行远程攻击动画
+    // --- 【移除】以下特定能力的状态变量 ---
+    // bool bIsAttackingMelee = false;
+    // bool bIsAttackingRanged = false;
+    // bool bIsTeleporting = false;
+    // --- 【移除完毕】 ---
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy State | State")
-	bool bIsDead = false; // 是否已死亡 (用于触发死亡动画)
+
+    // --- PaperZD 和 UAnimInstance 的生命周期函数 (保留) ---
+    virtual void OnInit_Implementation() override;
+    virtual void OnTick_Implementation(float DeltaTime) override;
 
 
-	// --- PaperZD 和 UAnimInstance 的生命周期函数 ---
-	// OnInit: 类似于 BeginPlay，在动画实例初始化时调用。
-	virtual void OnInit_Implementation() override;
-	// OnTick: 类似于 Tick，每帧调用。我们尽量减少这里的逻辑。
-	virtual void OnTick_Implementation(float DeltaTime) override;
+    // --- 通用接口函数的 C++ 实现声明 ---
+    // 这些函数将响应来自外部的通知，并更新上面的通用状态变量。
 
-	// --- IEnemyAnimationStateListener 接口函数的 C++ 实现声明 ---
-	// 这些函数将响应来自 AI 或组件的通知，并更新上面的状态变量。
-	// 使用 _Implementation 后缀是 BlueprintNativeEvent 的要求。
+    // IEnemyMovementAnimListener
+    virtual void OnMovementStateChanged_Implementation(float InSpeed, bool bInIsFalling, bool bInIsMoving) override;
 
-	virtual void OnMovementStateChanged_Implementation(float InSpeed, bool bInIsFalling, bool bInIsMoving) override;
-	virtual void OnMeleeAttackStarted_Implementation(AActor* Target) override;
-    virtual void OnRangedAttackStarted_Implementation(AActor* Target) override;
+    // IEnemyStateAnimListener
     virtual void OnDeathState_Implementation(AActor* Killer) override;
-    // 如果你在接口中添加了其他函数，也需要在这里声明对应的 _Implementation 函数。
+    virtual void OnTakeHit_Implementation(float DamageAmount, const FVector& HitDirection, bool bInterruptsCurrentAction) override;
 
-	// --- 内部使用的引用 ---
-	// 使用 TWeakObjectPtr 避免潜在的循环引用问题（虽然 AnimInstance -> Owner 通常还好，但这是好习惯）
+    // --- 【移除】以下特定接口函数的 C++ 实现声明 ---
+    // virtual void OnMeleeAttackStarted_Implementation(AActor* Target) override;
+    // virtual void OnRangedAttackStarted_Implementation(AActor* Target) override;
+    // virtual void OnTeleportStateChanged_Implementation(bool bNewIsTeleporting) override;
+    // --- 【移除完毕】 ---
 
-	/** 指向拥有此动画实例的敌人角色的弱指针 */
-	UPROPERTY(Transient, BlueprintReadOnly, Category="References", meta=(AllowPrivateAccess="true")) // Transient: 不保存, BlueprintReadOnly: 蓝图可读
-	TWeakObjectPtr<AEnemyCharacterBase> OwnerEnemyCharacter;
 
-	/** 指向拥有者角色的移动组件的弱指针 */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "References", meta = (AllowPrivateAccess = "true"))
-	TWeakObjectPtr<UCharacterMovementComponent> OwnerMovementComponent;
+    // --- 内部使用的引用 (保留) ---
+    UPROPERTY(Transient, BlueprintReadOnly, Category="References", meta=(AllowPrivateAccess="true"))
+    TWeakObjectPtr<AEnemyCharacterBase> OwnerEnemyCharacter;
+
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "References", meta = (AllowPrivateAccess = "true"))
+    TWeakObjectPtr<UCharacterMovementComponent> OwnerMovementComponent;
 };

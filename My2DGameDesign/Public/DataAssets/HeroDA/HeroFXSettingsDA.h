@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include  "Actors/AfterImageActor.h"
 #include "HeroFXSettingsDA.generated.h"
 
 /**
@@ -14,7 +15,11 @@ class MY2DGAMEDESIGN_API UHeroFXSettingsDA : public UDataAsset
 
 public:
 	// --- 残影设置 (Afterimage) ---
+	
 
+	/** @brief 残影效果使用的基础材质。*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Afterimage Effect")
+	TObjectPtr<UMaterialInterface> AfterImageBaseMaterial; // 新增
 	/** @brief 生成残影的时间间隔（秒）。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Afterimage Effect", meta = (ClampMin = "0.01"))
 	float AfterImageInterval = 0.05f;

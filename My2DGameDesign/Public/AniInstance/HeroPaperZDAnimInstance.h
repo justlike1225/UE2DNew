@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "PaperZDAnimInstance.h"
-#include "Interfaces/CharacterAnimationStateListener.h" // <-- 包含接口头文件
+#include "Interfaces/AnimationListener/CharacterAnimationStateListener.h" // <-- 包含接口头文件
 #include "HeroPaperZDAnimInstance.generated.h"
 
 // 前向声明
@@ -11,7 +11,8 @@ class UCharacterMovementComponent; // <-- 仍然需要移动组件
 
 // --- 让动画实例实现 ICharacterAnimationStateListener 接口 ---
 UCLASS()
-class MY2DGAMEDESIGN_API UHeroPaperZDAnimInstance : public UPaperZDAnimInstance, public ICharacterAnimationStateListener
+class MY2DGAMEDESIGN_API UHeroPaperZDAnimInstance
+	: public UPaperZDAnimInstance, public ICharacterAnimationStateListener
 {
 	GENERATED_BODY()
 
@@ -52,7 +53,7 @@ protected:
 	UPROPERTY() // 内部使用
 	TWeakObjectPtr<UCharacterMovementComponent> MovementComponentPtr;
 
-
+	
 	// --- 重写 PaperZD 的初始化和更新函数 ---
 	virtual void OnInit_Implementation() override;
 	virtual void OnTick_Implementation(float DeltaTime) override;

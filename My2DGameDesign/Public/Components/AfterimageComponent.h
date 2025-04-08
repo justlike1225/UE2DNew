@@ -33,14 +33,6 @@ protected:
 	float CurrentInitialOpacity = 0.5f;
 	float CurrentFadeUpdateInterval = 0.03f;
 	
-	// 用于生成残影的Actor类
-	UPROPERTY(EditDefaultsOnly, Category = "Afterimage Effect")
-	TSubclassOf<AAfterImageActor> AfterImageClass;
-
-	// 残影材质
-	UPROPERTY(EditDefaultsOnly, Category = "Afterimage Effect")
-	UMaterialInterface* AfterImageMaterial;
-
 	
 	
 	// 用于控制残影生成定时的句柄

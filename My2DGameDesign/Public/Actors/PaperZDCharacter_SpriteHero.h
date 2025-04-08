@@ -5,7 +5,7 @@
 #include "InputActionValue.h" // 包含输入值结构体
 #include "PaperZDCharacter.h" // 包含基类
 #include "Interfaces/ActionInterruptSource.h"
-#include "Interfaces/HeroAnimationStateProvider.h"
+#include "Interfaces/AnimationListenerProvider/HeroAnimationStateProvider.h"
 #include "Interfaces/FacingDirectionProvider.h"
 #include "UObject/ScriptInterface.h" // 包含 TScriptInterface
 #include "PaperZDCharacter_SpriteHero.generated.h"

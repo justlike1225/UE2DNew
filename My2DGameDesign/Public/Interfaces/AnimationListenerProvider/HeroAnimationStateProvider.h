@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "UObject/ScriptInterface.h" // 需要 TScriptInterface
-#include "Interfaces/CharacterAnimationStateListener.h" // 需要 ICharacterAnimationStateListener
+#include "Interfaces/AnimationListener//CharacterAnimationStateListener.h" // 需要 ICharacterAnimationStateListener
 #include "HeroAnimationStateProvider.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable) // Blueprintable 如果需要从蓝图获取

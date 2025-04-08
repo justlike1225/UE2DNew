@@ -9,8 +9,8 @@
 #include "TimerManager.h" // 确保包含TimerManager
 #include "EnhancedInputComponent.h" // 包含增强输入头文件
 #include "Interfaces/ActionInterruptSource.h"
-#include "Interfaces/HeroAnimationStateProvider.h"
-#include "Interfaces/CharacterAnimationStateListener.h" // 需要监听器接口
+#include "Interfaces/AnimationListenerProvider/HeroAnimationStateProvider.h"
+#include "Interfaces/AnimationListener//CharacterAnimationStateListener.h" // 需要监听器接口
 #include "Interfaces/FacingDirectionProvider.h"
 
 // 构造函数

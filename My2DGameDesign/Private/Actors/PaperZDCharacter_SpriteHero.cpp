@@ -11,7 +11,7 @@
 #include "Components/AfterimageComponent.h" // 残影组件
 #include "Components/HeroCombatComponent.h" // 战斗组件
 #include "Interfaces/InputBindingComponent.h" // 输入绑定接口
-#include "Interfaces/CharacterAnimationStateListener.h" // 动画状态监听器接口
+#include "Interfaces/AnimationListener/CharacterAnimationStateListener.h" // 动画状态监听器接口
 #include "InputMappingContext.h" // 输入映射上下文
 
 

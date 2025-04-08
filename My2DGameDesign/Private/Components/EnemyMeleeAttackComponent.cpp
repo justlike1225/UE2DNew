@@ -3,7 +3,7 @@
 #include "Components/EnemyMeleeAttackComponent.h" // 引入头文件
 #include "DataAssets/Enemy/EnemyMeleeAttackSettingsDA.h" // 引入数据资产头文件
 #include "Enemies/EnemyCharacterBase.h"              // 引入敌人基类头文件
-#include "Interfaces/EnemyAnimationStateListener.h"  // 引入动画监听器接口
+
 #include "Interfaces/Damageable.h"                   // 引入可受击接口
 #include "TimerManager.h"                            // 用于设置和清除定时器
 #include "Engine/World.h"                            // 需要 GetWorld()
@@ -38,8 +38,7 @@ void UEnemyMeleeAttackComponent::BeginPlay()
 		return;
 	}
 
-    // 尝试缓存动画监听器接口
-    TryCacheAnimListener();
+ 
 
     // 检查数据资产是否已配置
     if(!AttackSettings)
@@ -61,49 +60,56 @@ void UEnemyMeleeAttackComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 }
 
 
-// ExecuteAttack: 由 AI 调用执行攻击
 bool UEnemyMeleeAttackComponent::ExecuteAttack(AActor* Target)
 {
-	
-	if (!bCanAttack || bIsAttacking || !Target || !AttackSettings || !OwnerEnemyCharacter.IsValid())
-	{
-        
-		return false; // 攻击未能开始
-	}
-
-    UE_LOG(LogTemp, Log, TEXT("EnemyMeleeAttackComponent '%s' on '%s': Executing Melee Attack on '%s'."),
-        *GetName(), *OwnerEnemyCharacter->GetName(), *Target->GetName());
-
-
-	// --- 开始攻击流程 ---
-	bIsAttacking = true;         // 标记为正在攻击
-    bCanAttack = false;          // 标记为不能立即再次攻击 (进入冷却)
-    bHasAppliedDamageThisAttack = false; // 重置本次攻击的伤害标记
-	CurrentTarget = Target;      // 存储当前攻击目标
-
-	// 启动攻击冷却计时器
-	StartAttackCooldown();
-
-	// 尝试通知动画实例播放攻击动画
-    if (!AnimationStateListener.GetInterface()) // 如果接口无效，尝试再次获取
+    // --- 前置检查 (保留) ---
+    if (!bCanAttack || bIsAttacking || !Target || !AttackSettings || !OwnerEnemyCharacter.IsValid())
     {
-        TryCacheAnimListener();
+        // ... (日志或直接返回)
+        return false;
     }
 
-	if (AnimationStateListener) // 检查接口是否有效
-	{
-		// 通过接口调用动画实例的函数
-		IEnemyAnimationStateListener::Execute_OnMeleeAttackStarted(AnimationStateListener.GetObject(), Target);
-         UE_LOG(LogTemp, Verbose, TEXT("EnemyMeleeAttackComponent: Notified Animation Listener to start melee attack."), *GetName());
-	}
+    UE_LOG(LogTemp, Log, TEXT("EnemyMeleeAttackComponent '%s': Executing Melee Attack on '%s'."),
+        *GetName(), *Target->GetName());
+
+    // --- 开始攻击流程 (保留) ---
+    bIsAttacking = true;
+    bCanAttack = false;
+    bHasAppliedDamageThisAttack = false;
+    CurrentTarget = Target;
+    StartAttackCooldown(); // 启动冷却
+
+    // --- 修改：尝试通知动画实例 ---
+    // 检查 Owner 是否实现了新的 Provider 接口
+    IEnemySpecificAnimListenerProvider* Provider = Cast<IEnemySpecificAnimListenerProvider>(OwnerEnemyCharacter.Get());
+    if (Provider)
+    {
+        // 通过 Provider 获取【特定】的 Melee Listener 接口
+        TScriptInterface<IEnemyMeleeAttackAnimListener> MeleeListener = Provider->Execute_GetMeleeAttackAnimListener(OwnerEnemyCharacter.Get());
+
+        // 检查获取到的接口是否有效
+        if (MeleeListener)
+        {
+            // 有效，则调用接口函数通知动画实例
+            MeleeListener->Execute_OnMeleeAttackStarted(MeleeListener.GetObject(), Target);
+            UE_LOG(LogTemp, Verbose, TEXT("EnemyMeleeAttackComponent '%s': Notified Animation Listener (Melee) to start attack."), *GetName());
+        }
+        else
+        {
+            // 获取失败，说明 Owner 的 AnimInstance 没有实现 IEnemyMeleeAttackAnimListener
+            UE_LOG(LogTemp, Warning, TEXT("EnemyMeleeAttackComponent '%s': Owner ('%s') does not provide a valid IEnemyMeleeAttackAnimListener. Animation might not play."),
+                *GetName(), *OwnerEnemyCharacter->GetName());
+        }
+    }
     else
     {
-         UE_LOG(LogTemp, Warning, TEXT("EnemyMeleeAttackComponent '%s': Cannot notify Animation Listener - Interface is invalid."), *GetName());
-         // 没有动画实例监听，攻击动画可能不会播放，但伤害逻辑仍然可以执行（如果需要）
+        // Owner 没有实现 Provider 接口，这通常不应该发生，除非 Owner 不是我们修改后的 AEnemyCharacterBase
+        UE_LOG(LogTemp, Error, TEXT("EnemyMeleeAttackComponent '%s': Owner ('%s') does not implement IEnemySpecificAnimListenerProvider! Cannot get Anim Listener."),
+            *GetName(), *OwnerEnemyCharacter->GetName());
     }
+    // --- 动画通知结束 ---
 
-
-	return true; // 攻击成功开始
+    return true; // 攻击成功开始
 }
 
 // HandleDamageApplication: 由 AnimNotify 调用来施加伤害
@@ -187,33 +193,4 @@ void UEnemyMeleeAttackComponent::OnAttackCooldownFinished()
     bIsAttacking = false; // 标记攻击状态结束
     CurrentTarget = nullptr; // 清除当前目标
     // bHasAppliedDamageThisAttack 会在下次 ExecuteAttack 时重置
-}
-
-// TryCacheAnimListener: 尝试获取并缓存动画监听器
-bool UEnemyMeleeAttackComponent::TryCacheAnimListener()
-{
-	if (!OwnerEnemyCharacter.IsValid()) return false;
-
-	// 检查 Owner 是否实现了 *敌人* 的 Provider 接口
-	if(OwnerEnemyCharacter->GetClass()->ImplementsInterface(UEnemyAnimationStateProvider::StaticClass()))
-	{
-		// 通过 *敌人* Provider 接口获取 *敌人* Listener 接口
-		AnimationStateListener = IEnemyAnimationStateProvider::Execute_GetEnemyAnimStateListener(OwnerEnemyCharacter.Get()); // <--- 调用新的 Provider 函数
-		if(AnimationStateListener.GetInterface())
-		{
-			UE_LOG(LogTemp, Verbose, TEXT("EnemyMeleeAttackComponent '%s': Successfully cached *Enemy* Animation State Listener."), *GetName());
-			return true;
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("EnemyMeleeAttackComponent '%s': Owner implements Provider but returned invalid *Enemy* Listener interface."), *GetName());
-			return false;
-		}
-	}
-	else // Owner 没有实现敌人 Provider 接口
-	{
-		UE_LOG(LogTemp, Warning, TEXT("EnemyMeleeAttackComponent '%s': Owner '%s' does not implement IEnemyAnimationStateProvider interface."),
-		   *GetName(), *OwnerEnemyCharacter->GetName());
-		return false;
-	}
 }

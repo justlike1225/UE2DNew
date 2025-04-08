@@ -9,7 +9,6 @@
 // --- 前向声明 ---
 class UEnemyRangedAttackSettingsDA; // 远程攻击数据资产
 class AEnemyCharacterBase;          // 敌人角色基类
-class IEnemyAnimationStateListener; // 敌人动画监听器接口
 class AActor;                      // Actor 基类
 class AEnemyProjectileBase;       // 敌人投掷物基类
 class FTimerManager;               // 定时器管理器
@@ -85,9 +84,7 @@ protected:
 	UPROPERTY(Transient)
 	TWeakObjectPtr<AEnemyCharacterBase> OwnerEnemyCharacter;
 
-	/** 指向敌人动画实例监听器接口的指针 */
-    UPROPERTY(Transient)
-    TScriptInterface<IEnemyAnimationStateListener> AnimationStateListener;
+
 
 private:
 	// --- 内部辅助函数 ---
@@ -98,9 +95,7 @@ private:
 	/** 当攻击冷却计时器结束时调用 */
 	UFUNCTION()
 	void OnAttackCooldownFinished();
-
-	/** 尝试获取并缓存动画监听器接口 */
-	bool TryCacheAnimListener();
+	
 
     /**
      * @brief 计算投掷物的生成位置和旋转。

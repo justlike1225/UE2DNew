@@ -87,7 +87,7 @@ void UAfterimageComponent::BeginPlay()
 
 void UAfterimageComponent::StartSpawning()
 {
-	if (bIsSpawning || !AfterImageClass || !OwnerSpriteComponent.IsValid() || !GetWorld())
+	if (bIsSpawning || !OwnerSpriteComponent.IsValid() || !GetWorld())
 	{
         if(!OwnerSpriteComponent.IsValid()) UE_LOG(LogTemp, Warning, TEXT("AfterimageComponent::StartSpawning: Cannot start, Owner Sprite Component is invalid or not found."));
 		return; 
@@ -153,12 +153,12 @@ void UAfterimageComponent::SpawnAfterImage()
 	UE_LOG(LogTemp, Warning, TEXT("SpawnAfterImage: ====> Attempting to spawn via Subsystem: %p. Flipbook: %s. Material: %s"),
 		AfterImagePoolSubsystemPtr.Get(),
 		SpriteComp ? *SpriteComp->GetName() : TEXT("NULL"),
-		AfterImageMaterial ? *AfterImageMaterial->GetName() : TEXT("NULL")
+		FXSettings->AfterImageBaseMaterial ? *FXSettings->AfterImageBaseMaterial->GetName() : TEXT("NULL")
 	);
 	// 调用对象池的SpawnFromPool函数
 	AAfterImageActor* GhostActor = AfterImagePoolSubsystemPtr->SpawnFromPool(
 		SpriteComp->GetFlipbook(),
-		AfterImageMaterial,         // 材质仍然可以在这个组件上配置
+		 FXSettings->AfterImageBaseMaterial,        // 材质仍然可以在这个组件上配置
 		CurrentAfterImageLifetime,  // 使用从DA加载的生命周期
 		SpriteTransform,
 		CurrentOpacityParamName,    // 使用从DA加载的参数名

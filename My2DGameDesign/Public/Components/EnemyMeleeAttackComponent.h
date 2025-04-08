@@ -10,7 +10,6 @@
 // --- 前向声明 ---
 class UEnemyMeleeAttackSettingsDA; // 我们的数据资产
 class AEnemyCharacterBase;         // 敌人角色基类
-class IEnemyAnimationStateListener;// 敌人动画监听器接口
 class AActor;                     // Actor 基类
 class FTimerManager;              // 需要 TimerManager 来处理定时器句柄
 
@@ -89,9 +88,7 @@ protected:
 	UPROPERTY(Transient)
 	TWeakObjectPtr<AEnemyCharacterBase> OwnerEnemyCharacter;
 
-	/** 指向敌人动画实例监听器接口的指针 */
-    UPROPERTY(Transient)
-    TScriptInterface<IEnemyAnimationStateListener> AnimationStateListener;
+	
 
 private:
 	// --- 内部辅助函数 ---	
@@ -103,6 +100,4 @@ private:
 	UFUNCTION() // UFUNCTION 宏是定时器回调函数所必需的
 	void OnAttackCooldownFinished();
 
-	/** 尝试获取并缓存动画监听器接口 */
-	bool TryCacheAnimListener();
 };

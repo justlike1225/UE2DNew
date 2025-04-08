@@ -4,8 +4,7 @@
 #include "DataAssets/Enemy/EnemyRangedAttackSettingsDA.h" // 引入数据资产
 #include "Actors/EnemyProjectileBase.h"           // 引入投掷物基类
 #include "Enemies/EnemyCharacterBase.h"           // 引入敌人基类
-#include "Interfaces/EnemyAnimationStateListener.h" // 引入动画监听器
-#include "Interfaces/EnemyAnimationStateProvider.h" // 引入动画提供者
+
 #include "TimerManager.h"                         // 定时器
 #include "Engine/World.h"                         // GetWorld()
 #include "GameFramework/Actor.h"                  // AActor
@@ -23,34 +22,28 @@ UEnemyRangedAttackComponent::UEnemyRangedAttackComponent()
 	bCanAttack = true;
 	bIsAttacking = false;
 }
-
-// BeginPlay: 初始化
 void UEnemyRangedAttackComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 获取 Owner 引用
 	OwnerEnemyCharacter = Cast<AEnemyCharacterBase>(GetOwner());
 	if (!OwnerEnemyCharacter.IsValid())
 	{
-		UE_LOG(LogTemp, Error, TEXT("EnemyRangedAttackComponent '%s' requires its owner to be derived from AEnemyCharacterBase!"), *GetName());
+		UE_LOG(LogTemp, Error, TEXT("EnemyRangedAttackComponent '%s' requires owner derived from AEnemyCharacterBase!"), *GetName());
 		return;
 	}
 
-    // 尝试缓存动画监听器
-    TryCacheAnimListener();
+	// --- 移除缓存 Listener 的逻辑 ---
+	// TryCacheAnimListener(); // <-- 删除这行调用
 
-    // 检查数据资产和其中的关键配置（投掷物类）
-    if(!AttackSettings)
-    {
-         UE_LOG(LogTemp, Warning, TEXT("EnemyRangedAttackComponent '%s' on Actor '%s' is missing AttackSettings Data Asset!"),
-             *GetName(), *OwnerEnemyCharacter->GetName());
-    }
-    else if (!AttackSettings->ProjectileClass) // 检查是否设置了投掷物类
-    {
-        UE_LOG(LogTemp, Error, TEXT("EnemyRangedAttackComponent '%s': AttackSettings DA ('%s') does not have ProjectileClass specified! Ranged attack will fail."),
-            *GetName(), *AttackSettings->GetName());
-    }
+	// 检查数据资产和投掷物类 (保留)
+	if(!AttackSettings) {
+		UE_LOG(LogTemp, Warning, TEXT("EnemyRangedAttackComponent '%s' on '%s' is missing AttackSettings DA!"),
+			*GetName(), *OwnerEnemyCharacter->GetName());
+	} else if (!AttackSettings->ProjectileClass) {
+		UE_LOG(LogTemp, Error, TEXT("EnemyRangedAttackComponent '%s': AttackSettings DA ('%s') missing ProjectileClass!"),
+			*GetName(), *AttackSettings->GetName());
+	}
 }
 
 // EndPlay: 清理定时器
@@ -64,54 +57,53 @@ void UEnemyRangedAttackComponent::EndPlay(const EEndPlayReason::Type EndPlayReas
 }
 
 
-// ExecuteAttack: 由 AI 调用执行攻击
 bool UEnemyRangedAttackComponent::ExecuteAttack(AActor* Target)
 {
-	// --- 前置条件检查 ---
-    // 1. 能否攻击 (冷却)？ 2. 是否已在攻击中？ 3. 目标有效？ 4. 配置有效？ 5. 配置中的投掷物类有效？ 6. Owner有效？
+	// --- 前置条件检查 (保留) ---
 	if (!bCanAttack || bIsAttacking || !Target || !AttackSettings || !AttackSettings->ProjectileClass || !OwnerEnemyCharacter.IsValid())
 	{
-        // （可选）记录失败原因的日志
 		return false;
 	}
+	// ... (可选的距离检查等) ...
 
-    // (可选) 检查距离是否在配置的最小/最大范围内
-    // float DistanceSq = FVector::DistSquared(OwnerEnemyCharacter->GetActorLocation(), Target->GetActorLocation());
-    // float MinRangeSq = FMath::Square(AttackSettings->AttackRangeMin);
-    // float MaxRangeSq = FMath::Square(AttackSettings->AttackRangeMax);
-    // if (DistanceSq < MinRangeSq || DistanceSq > MaxRangeSq)
-    // {
-    //     UE_LOG(LogTemp, Verbose, TEXT("EnemyRangedAttackComponent '%s': Target '%s' is out of range (%.1f units). Attack cancelled."), *GetName(), *Target->GetName(), FMath::Sqrt(DistanceSq));
-    //     return false;
-    // }
+	UE_LOG(LogTemp, Log, TEXT("EnemyRangedAttackComponent '%s': Executing Ranged Attack on '%s'."),
+		*GetName(), *Target->GetName());
 
-
-    UE_LOG(LogTemp, Log, TEXT("EnemyRangedAttackComponent '%s' on '%s': Executing Ranged Attack on '%s'."),
-        *GetName(), *OwnerEnemyCharacter->GetName(), *Target->GetName());
-
-	// --- 开始攻击流程 ---
+	// --- 开始攻击流程 (保留) ---
 	bIsAttacking = true;
-    bCanAttack = false;
-	CurrentTarget = Target; // 存储目标
+	bCanAttack = false;
+	CurrentTarget = Target;
+	StartAttackCooldown(); // 启动冷却
 
-	// 启动冷却
-	StartAttackCooldown();
-
-	// 尝试通知动画实例播放动画
-    if (!AnimationStateListener.GetInterface())
-    {
-        TryCacheAnimListener();
-    }
-
-	if (AnimationStateListener)
+	// --- 修改：尝试通知动画实例 ---
+	// 检查 Owner 是否实现了新的 Provider 接口
+	IEnemySpecificAnimListenerProvider* Provider = Cast<IEnemySpecificAnimListenerProvider>(OwnerEnemyCharacter.Get());
+	if (Provider)
 	{
-		IEnemyAnimationStateListener::Execute_OnRangedAttackStarted(AnimationStateListener.GetObject(), Target);
-        UE_LOG(LogTemp, Verbose, TEXT("EnemyRangedAttackComponent: Notified Animation Listener to start ranged attack."), *GetName());
+		// 通过 Provider 获取【特定】的 Ranged Listener 接口
+		TScriptInterface<IEnemyRangedAttackAnimListener> RangedListener = Provider->Execute_GetRangedAttackAnimListener(OwnerEnemyCharacter.Get());
+
+		// 检查获取到的接口是否有效
+		if (RangedListener)
+		{
+			// 有效，则调用接口函数通知动画实例
+			RangedListener->Execute_OnRangedAttackStarted(RangedListener.GetObject(), Target);
+			UE_LOG(LogTemp, Verbose, TEXT("EnemyRangedAttackComponent '%s': Notified Animation Listener (Ranged) to start attack."), *GetName());
+		}
+		else
+		{
+			// 获取失败
+			UE_LOG(LogTemp, Warning, TEXT("EnemyRangedAttackComponent '%s': Owner ('%s') does not provide a valid IEnemyRangedAttackAnimListener. Animation might not play."),
+				*GetName(), *OwnerEnemyCharacter->GetName());
+		}
 	}
-    else
-    {
-         UE_LOG(LogTemp, Warning, TEXT("EnemyRangedAttackComponent '%s': Cannot notify Animation Listener - Interface is invalid."), *GetName());
-    }
+	else
+	{
+		// Owner 未实现 Provider
+		UE_LOG(LogTemp, Error, TEXT("EnemyRangedAttackComponent '%s': Owner ('%s') does not implement IEnemySpecificAnimListenerProvider!"),
+			*GetName(), *OwnerEnemyCharacter->GetName());
+	}
+	// --- 动画通知结束 ---
 
 	return true;
 }
@@ -215,24 +207,6 @@ void UEnemyRangedAttackComponent::OnAttackCooldownFinished()
     CurrentTarget = nullptr;
 }
 
-// TryCacheAnimListener: 缓存动画监听器
-bool UEnemyRangedAttackComponent::TryCacheAnimListener()
-{
-    // 与近战组件的实现完全相同
-    if (!OwnerEnemyCharacter.IsValid()) return false;
-
-    if(OwnerEnemyCharacter->GetClass()->ImplementsInterface(UEnemyAnimationStateProvider::StaticClass()))
-    {
-        AnimationStateListener = IEnemyAnimationStateProvider::Execute_GetEnemyAnimStateListener(OwnerEnemyCharacter.Get());
-        if(AnimationStateListener.GetInterface())
-        {
-            return true;
-        }
-    }
-    UE_LOG(LogTemp, Warning, TEXT("EnemyRangedAttackComponent '%s': Failed to cache Animation State Listener from owner '%s' (may not implement provider or listener)."),
-        *GetName(), *OwnerEnemyCharacter->GetName());
-    return false;
-}
 
 // CalculateSpawnTransform: 计算生成位置和旋转
 bool UEnemyRangedAttackComponent::CalculateSpawnTransform(FVector& OutSpawnLocation, FRotator& OutSpawnRotation) const

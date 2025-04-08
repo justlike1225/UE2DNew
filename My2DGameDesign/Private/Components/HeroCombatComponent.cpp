@@ -8,7 +8,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Interfaces/CharacterAnimationStateListener.h"
+#include "Interfaces/AnimationListener/CharacterAnimationStateListener.h"
 #include "DataAssets/HeroDA/HeroCombatSettingsDA.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/DamageType.h"

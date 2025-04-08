@@ -1,279 +1,230 @@
-﻿// My2DGameDesign/Private/Enemies/EnemyCharacterBase.cpp
+﻿// My2DGameDesign/Private/Enemies/EnemyCharacterBase.cpp (Refactored)
 
-#include "Enemies/EnemyCharacterBase.h"       // 引入对应的头文件
-#include "Components/HealthComponent.h"      // 引入生命组件头文件
-#include "PaperFlipbookComponent.h"          // 用于获取和设置 Sprite
-#include "PaperZDAnimationComponent.h"       // 用于获取动画组件
-#include "PaperZDAnimInstance.h"           // PaperZD 动画实例基类
-#include "AIController.h"                  // AI 控制器基类
-#include "BrainComponent.h"                // AI 大脑组件，用于停止行为树
-#include "GameFramework/CharacterMovementComponent.h" // 角色移动组件
-#include "BehaviorTree/BehaviorTree.h"     // 行为树类
-#include "BehaviorTree/BlackboardComponent.h" // 黑板组件
-// 引入我们将要创建的动画实例基类头文件 (虽然文件还没创建，先包含进来)
+#include "Enemies/EnemyCharacterBase.h"
+#include "Components/HealthComponent.h"
+#include "PaperFlipbookComponent.h"
+#include "PaperZDAnimationComponent.h"
+#include "PaperZDAnimInstance.h" // <-- 需要基础动画实例类
+#include "AIController.h"
+#include "BrainComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BlackboardComponent.h"
 #include "AniInstance/EnemyAnimInstanceBase.h"
-// 引入动画状态监听器接口头文件
+#include "Interfaces/AnimationListener//EnemyMovementAnimListener.h"
+#include "Interfaces/AnimationListener//EnemyStateAnimListener.h"
+#include "Interfaces/AnimationListener//EnemyMeleeAttackAnimListener.h"
+#include "Interfaces/AnimationListener//EnemyRangedAttackAnimListener.h"
+#include "Interfaces/AnimationListener//EnemyTeleportAnimListener.h"
 
 
-
-// 构造函数
+// 构造函数 (基本不变)
 AEnemyCharacterBase::AEnemyCharacterBase()
 {
-	// 创建生命组件实例，并将其附加到这个 Actor
-	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
-
-    // --- AI 控制设置 ---
-    // 设置默认的 AI 控制器类，如果子类没有指定，则使用这个
-    // 注意：这里通常设置一个基类，具体的 AIController 可能在子类或蓝图中指定
+    HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
     AIControllerClass = AAIController::StaticClass();
-    // 设置 AI 控制器何时自动控制此 Pawn：在关卡中放置或动态生成时
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-
-    // 初始化朝向状态
-    bIsFacingRight = true; // 游戏开始时默认朝右
+    bIsFacingRight = true;
 }
 
-// BeginPlay: 游戏开始时的初始化
+// BeginPlay: 修改为调用新的缓存函数
 void AEnemyCharacterBase::BeginPlay()
 {
-	Super::BeginPlay(); // 调用父类的 BeginPlay
+    Super::BeginPlay();
 
-	// 尝试查找并缓存动画监听器接口
-    CacheAnimationStateListener();
+    // 尝试查找并缓存基础动画实例指针
+    CacheBaseAnimInstance(); // <-- 调用新的缓存函数
 
-    // 绑定 HealthComponent 的 OnDeath 委托到我们的 HandleDeath 函数
-    if(HealthComponent)
-    {
-        // 当 HealthComponent 广播 OnDeath 事件时，会自动调用本类的 HandleDeath 函数
+    if(HealthComponent) {
         HealthComponent->OnDeath.AddDynamic(this, &AEnemyCharacterBase::HandleDeath);
-    }
-    else
-    {
+    } else {
         UE_LOG(LogTemp, Error, TEXT("EnemyCharacterBase '%s' has no valid HealthComponent!"), *GetName());
     }
 }
 
-// PossessedBy: 当被 AI 控制器控制时
+// PossessedBy (基本不变)
 void AEnemyCharacterBase::PossessedBy(AController* NewController)
 {
-    Super::PossessedBy(NewController);
-
-    // 尝试将新的控制器转换为 AI 控制器
-    AAIController* AIController = Cast<AAIController>(NewController);
-    if (AIController)
-    {
-        // 获取 AI 控制器关联的黑板组件
-        UBlackboardComponent* BlackboardComp = AIController->GetBlackboardComponent(); // 或者 AIController->UseBlackboard(BehaviorTree->BlackboardAsset, BlackboardComp);
-
-        // 检查行为树资产是否已经设置（通常在子类或蓝图默认值中设置）
-        if (BehaviorTree && BehaviorTree->BlackboardAsset)
+   Super::PossessedBy(NewController);
+    // ... (原有的 AI 和行为树启动逻辑不变) ...
+     AAIController* AIController = Cast<AAIController>(NewController);
+        if (AIController)
         {
-            // 使用行为树的黑板资产来初始化黑板组件
-            // 确保 AI 控制器使用的黑板与行为树期望的黑板是同一个
-             if(BlackboardComp)
-             {
-                 BlackboardComp->InitializeBlackboard(*(BehaviorTree->BlackboardAsset));
-             }
-             else // 如果控制器还没有黑板组件，尝试创建一个并初始化
-             {
-                  bool bSuccess = AIController->UseBlackboard(BehaviorTree->BlackboardAsset, BlackboardComp);
-                  if(!bSuccess || !BlackboardComp)
-                  {
-                      UE_LOG(LogTemp, Error, TEXT("EnemyCharacterBase (%s): Failed to Use or Initialize Blackboard!"), *GetName());
-                      return; // 没有黑板无法运行行为树
-                  }
-             }
+            UBlackboardComponent* BlackboardComp = AIController->GetBlackboardComponent();
 
-             // (可选) 在黑板上设置一些初始值
-             // 设置 SelfActor 键，让行为树知道它自己是谁
-             BlackboardComp->SetValueAsObject(FName("SelfActor"), this);
-             UE_LOG(LogTemp, Verbose, TEXT("EnemyCharacterBase (%s): Set 'SelfActor' on Blackboard."), *GetName());
+            if (BehaviorTree && BehaviorTree->BlackboardAsset)
+            {
+                 if(BlackboardComp)
+                 {
+                     BlackboardComp->InitializeBlackboard(*(BehaviorTree->BlackboardAsset));
+                 }
+                 else
+                 {
+                      bool bSuccess = AIController->UseBlackboard(BehaviorTree->BlackboardAsset, BlackboardComp);
+                      if(!bSuccess || !BlackboardComp)
+                      {
+                          UE_LOG(LogTemp, Error, TEXT("EnemyCharacterBase (%s): Failed to Use or Initialize Blackboard!"), *GetName());
+                          return;
+                      }
+                 }
+                 // 设置 SelfActor 键
+                 BlackboardComp->SetValueAsObject(FName("SelfActor"), this);
+                  // 启动行为树
+                 bool bRunSuccess = AIController->RunBehaviorTree(BehaviorTree);
+                if(!bRunSuccess) {
+                   UE_LOG(LogTemp, Error, TEXT("EnemyCharacterBase (%s): Failed to run Behavior Tree '%s'!"), *GetName(), *BehaviorTree->GetName());
+                } else {
+                    UE_LOG(LogTemp, Log, TEXT("EnemyCharacterBase (%s): Possessed by AIController (%s), running Behavior Tree '%s'."),
+                        *GetName(), *AIController->GetName(), *BehaviorTree->GetName());
+                }
 
-            // 启动行为树执行
-            bool bRunSuccess = AIController->RunBehaviorTree(BehaviorTree);
-            if(bRunSuccess)
-            {
-                 UE_LOG(LogTemp, Log, TEXT("EnemyCharacterBase (%s): Possessed by AIController (%s), successfully running Behavior Tree '%s'."),
-                    *GetName(), *AIController->GetName(), *BehaviorTree->GetName());
             }
-            else
-            {
-                 UE_LOG(LogTemp, Error, TEXT("EnemyCharacterBase (%s): Failed to run Behavior Tree '%s'!"), *GetName(), *BehaviorTree->GetName());
-            }
+             else
+             {
+                 UE_LOG(LogTemp, Warning, TEXT("EnemyCharacterBase (%s): AIController possessed, but BehaviorTree or BlackboardAsset is not set!"), *GetName());
+             }
         }
-         else
-         {
-             UE_LOG(LogTemp, Warning, TEXT("EnemyCharacterBase (%s): AIController (%s) possessed, but BehaviorTree or BlackboardAsset is not set on the character! AI will not run."),
-                *GetName(), *AIController->GetName());
-         }
-    }
-    else // 如果控制者不是 AIController
-    {
-         UE_LOG(LogTemp, Warning, TEXT("EnemyCharacterBase (%s): Possessed by a non-AI Controller (%s)."),
-             *GetName(), NewController ? *NewController->GetName() : TEXT("None"));
-    }
+        else
+        {
+             UE_LOG(LogTemp, Warning, TEXT("EnemyCharacterBase (%s): Possessed by a non-AI Controller."), *GetName());
+        }
+
 }
 
 
 // --- 接口实现 ---
 
-// IDamageable 接口实现：直接将伤害请求转发给 HealthComponent 处理
+// IDamageable (修改: 调用新的 GetStateAnimListener)
 float AEnemyCharacterBase::ApplyDamage_Implementation(float DamageAmount, AActor* DamageCauser, AController* InstigatorController, const FHitResult& HitResult)
 {
-	if(HealthComponent)
-    {
-       // 调用 HealthComponent 的 TakeDamage 函数来实际处理伤害逻辑
-       return HealthComponent->TakeDamage(DamageAmount, DamageCauser, InstigatorController);
+    if (!HealthComponent) return 0.f;
+
+    float ActualDamage = HealthComponent->TakeDamage(DamageAmount, DamageCauser, InstigatorController);
+
+    if (ActualDamage > 0.f && !HealthComponent->IsDead()) {
+        // --- 修改: 获取 State Listener ---
+        TScriptInterface<IEnemyStateAnimListener> StateListener = GetStateAnimListener(); // 调用 Provider 获取接口
+        if (StateListener) { // 检查接口有效性
+            FVector HitDirection = FVector::ZeroVector;
+            if (DamageCauser) {
+                HitDirection = (GetActorLocation() - DamageCauser->GetActorLocation()).GetSafeNormal();
+            } else if (HitResult.IsValidBlockingHit()) {
+                 HitDirection = -HitResult.ImpactNormal;
+             }
+            bool bShouldInterrupt = true; // TODO: 添加打断逻辑判断
+
+            StateListener->Execute_OnTakeHit(StateListener.GetObject(), ActualDamage, HitDirection, bShouldInterrupt); // 通过接口调用
+             // UE_LOG(LogTemp, Verbose, ...);
+
+            // (可选) AI 打断逻辑
+            // ...
+        } else {
+            // UE_LOG(LogTemp, Warning, TEXT("EnemyCharacterBase (%s): No valid IEnemyStateAnimListener found."), *GetName());
+        }
     }
-    UE_LOG(LogTemp, Warning, TEXT("EnemyCharacterBase (%s): ApplyDamage called but HealthComponent is invalid!"), *GetName());
-    return 0.f; // 如果没有生命组件，则不受伤害
+    return ActualDamage;
 }
 
 
+// --- 新: 实现 IEnemySpecificAnimListenerProvider 的 Getter 函数 ---
+// 返回尝试转换基础动画实例到目标接口的结果
+TScriptInterface<IEnemyMovementAnimListener> AEnemyCharacterBase::GetMovementAnimListener_Implementation() const {
+    return TScriptInterface<IEnemyMovementAnimListener>(CachedAnimInstancePtr.Get());
+}
 
-// IFacingDirectionProvider 接口实现：根据内部状态返回朝向向量
-FVector AEnemyCharacterBase::GetFacingDirection_Implementation() const
-{
-    // 根据 bIsFacingRight 状态返回世界空间中的前方向量或后方向量
-	return bIsFacingRight ? GetActorForwardVector() : -GetActorForwardVector();
-    // 注意：这里直接用了 Actor 的 ForwardVector。对于 2D PaperZD，可能 GetActorForwardVector() 总是 (1,0,0)。
-    // 更好的方式可能是直接返回 FVector(1,0,0) 或 FVector(-1,0,0)
-    // return bIsFacingRight ? FVector::ForwardVector : -FVector::ForwardVector;
+TScriptInterface<IEnemyStateAnimListener> AEnemyCharacterBase::GetStateAnimListener_Implementation() const {
+    return TScriptInterface<IEnemyStateAnimListener>(CachedAnimInstancePtr.Get());
+}
+
+TScriptInterface<IEnemyMeleeAttackAnimListener> AEnemyCharacterBase::GetMeleeAttackAnimListener_Implementation() const {
+    // 基类默认实现：尝试转换。如果子类的 AnimInstance 实现了接口，这里就能返回有效的。
+    return TScriptInterface<IEnemyMeleeAttackAnimListener>(CachedAnimInstancePtr.Get());
+}
+
+TScriptInterface<IEnemyRangedAttackAnimListener> AEnemyCharacterBase::GetRangedAttackAnimListener_Implementation() const {
+    return TScriptInterface<IEnemyRangedAttackAnimListener>(CachedAnimInstancePtr.Get());
+}
+
+TScriptInterface<IEnemyTeleportAnimListener> AEnemyCharacterBase::GetTeleportAnimListener_Implementation() const {
+    return TScriptInterface<IEnemyTeleportAnimListener>(CachedAnimInstancePtr.Get());
+}
+// --- Provider Getter 实现结束 ---
+
+
+// IFacingDirectionProvider (保留)
+FVector AEnemyCharacterBase::GetFacingDirection_Implementation() const {
+    return bIsFacingRight ? FVector::ForwardVector : -FVector::ForwardVector; // 简化为直接用 +/- Forward
 }
 
 
 // --- 内部逻辑函数 ---
 
-// HandleDeath: 处理死亡逻辑 (由 HealthComponent 的 OnDeath 委托调用)
-void AEnemyCharacterBase::HandleDeath(AActor* Killer)
-{
-    UE_LOG(LogTemp, Log, TEXT("EnemyCharacterBase (%s): HandleDeath is executing."), *GetName());
-
-    // 1. 停止 AI 逻辑
-    AController* MyController = GetController();
-    if(MyController)
-    {
-        MyController->StopMovement(); // 停止任何当前移动命令
-        AAIController* AIController = Cast<AAIController>(MyController);
-        if (AIController && AIController->GetBrainComponent()) // 检查 BrainComponent 是否有效
+// HandleDeath (修改: 调用新的 GetStateAnimListener)
+void AEnemyCharacterBase::HandleDeath(AActor* Killer) {
+    UE_LOG(LogTemp, Log, TEXT("EnemyCharacterBase (%s): HandleDeath."), *GetName());
+    // ... (停止 AI, 禁用物理等逻辑不变) ...
+     AController* MyController = GetController();
+        if(MyController)
         {
-            AIController->GetBrainComponent()->StopLogic("Character Died"); // 停止行为树等逻辑
-            UE_LOG(LogTemp, Verbose, TEXT("EnemyCharacterBase (%s): AI Brain logic stopped."), *GetName());
+            MyController->StopMovement();
+            AAIController* AIController = Cast<AAIController>(MyController);
+            if (AIController && AIController->GetBrainComponent())
+            {
+                AIController->GetBrainComponent()->StopLogic("Character Died");
+            }
         }
-        // AI 控制器可能需要解除对 Pawn 的控制
-        // AIController->UnPossess(); // 可以考虑解除控制
-    }
-
-    // 2. 禁用物理和移动
-    SetActorEnableCollision(false); // 禁用 Actor 的主碰撞
-    if(GetCharacterMovement())
-    {
-        GetCharacterMovement()->StopMovementImmediately(); // 立即停止移动
-        GetCharacterMovement()->DisableMovement();         // 禁用移动能力
-        GetCharacterMovement()->SetComponentTickEnabled(false); // 停止移动组件的 Tick
-    }
-     UE_LOG(LogTemp, Verbose, TEXT("EnemyCharacterBase (%s): Collision and Movement component disabled."), *GetName());
-
-    // 3. 通知动画实例播放死亡动画
-    // 我们需要确保 AnimationStateListener 是有效的，并且实现了我们期望的死亡通知函数
-    // 假设我们之后会在 IEnemyAnimationStateListener 中定义 OnDeathState
-    if (AnimationStateListener)
-    {
-        // 强转 TScriptInterface 到具体接口类型来调用（更安全的方式）
-        IEnemyAnimationStateListener* Listener = Cast<IEnemyAnimationStateListener>(AnimationStateListener.GetObject());
-        if(Listener)
+        SetActorEnableCollision(false);
+        if(GetCharacterMovement())
         {
-             // 调用死亡状态接口函数
-             Listener->Execute_OnDeathState(AnimationStateListener.GetObject(), Killer); // 使用 Execute_ 前缀调用接口函数更安全
-             UE_LOG(LogTemp, Verbose, TEXT("EnemyCharacterBase (%s): Notified Animation Listener about death."), *GetName());
+            GetCharacterMovement()->StopMovementImmediately();
+            GetCharacterMovement()->DisableMovement();
+            GetCharacterMovement()->SetComponentTickEnabled(false);
         }
-         else
-         {
-              UE_LOG(LogTemp, Warning, TEXT("EnemyCharacterBase (%s): AnimationStateListener does not implement IEnemyAnimationStateListener!"), *GetName());
-         }
-    }
-     else
-     {
-         UE_LOG(LogTemp, Warning, TEXT("EnemyCharacterBase (%s): No valid AnimationStateListener found during HandleDeath."), *GetName());
+
+
+    // --- 修改: 获取 State Listener ---
+    TScriptInterface<IEnemyStateAnimListener> StateListener = GetStateAnimListener(); // 调用 Provider 获取接口
+    if (StateListener) { // 检查接口有效性
+        StateListener->Execute_OnDeathState(StateListener.GetObject(), Killer); // 通过接口调用
+         // UE_LOG(LogTemp, Verbose, ...);
+    } else {
+         UE_LOG(LogTemp, Warning, TEXT("EnemyCharacterBase (%s): No valid IEnemyStateAnimListener found during HandleDeath."), *GetName());
      }
 
-
-    // 4. 设置 Actor 在一段时间后自动销毁
-    SetLifeSpan(5.0f); // 例如，5秒后自动从关卡中移除
-    UE_LOG(LogTemp, Verbose, TEXT("EnemyCharacterBase (%s): Set lifespan to 5 seconds for automatic cleanup."), *GetName());
-
-    // 注意：这里的死亡处理比较通用。具体的死亡效果（如粒子、声音、碎裂）
-    // 通常在动画通知 (AnimNotify) 或者监听 OnDeath 委托的其他系统中处理。
+    SetLifeSpan(5.0f); // 保留设置销毁时间
 }
 
-// SetFacingDirection: 设置视觉朝向 (翻转 Sprite)
-void AEnemyCharacterBase::SetFacingDirection(bool bFaceRight)
-{
-    // 如果方向没有改变，则不做任何事
+// SetFacingDirection (保留)
+void AEnemyCharacterBase::SetFacingDirection(bool bFaceRight) {
     if (bIsFacingRight == bFaceRight) return;
-
-    bIsFacingRight = bFaceRight; // 更新内部状态
-    if (UPaperFlipbookComponent* flipbookcmp = GetSprite()) // 获取 PaperZD 的 Sprite 组件
-    {
+    bIsFacingRight = bFaceRight;
+    if (UPaperFlipbookComponent* flipbookcmp = GetSprite()) {
         FVector CurrentScale = flipbookcmp->GetRelativeScale3D();
-        // 直接设置 Scale.X 为 1.0 或 -1.0 来控制朝向
         CurrentScale.X = bIsFacingRight ? FMath::Abs(CurrentScale.X) : -FMath::Abs(CurrentScale.X);
-        flipbookcmp->SetRelativeScale3D(CurrentScale); // 应用新的缩放值
+        flipbookcmp->SetRelativeScale3D(CurrentScale);
     }
-     // 调试日志，确认方向设置
-     // UE_LOG(LogTemp, Verbose, TEXT("EnemyCharacterBase (%s): SetFacingDirection called. Now facing %s"), *GetName(), bFaceRight ? TEXT("Right") : TEXT("Left"));
 }
 
 
-// CacheAnimationStateListener: 查找并缓存动画监听器接口
-void AEnemyCharacterBase::CacheAnimationStateListener()
-{
-    // 获取 PaperZD 动画组件
-	if (UPaperZDAnimationComponent* AnimComp = GetAnimationComponent())
-	{
-        // 从动画组件获取当前的动画实例
-		UPaperZDAnimInstance* BaseAnimInstance = AnimComp->GetAnimInstance();
-		if (BaseAnimInstance)
-		{
-            // 尝试将动画实例转换为我们期望的监听器接口 (这里暂时复用英雄的)
-            AnimationStateListener = TScriptInterface<IEnemyAnimationStateListener>(BaseAnimInstance);
-            // 检查转换是否成功，以及获取到的对象是否有效
-            if (AnimationStateListener.GetInterface() && AnimationStateListener.GetObject())
-            {
-                UE_LOG(LogTemp, Log, TEXT("EnemyCharacterBase '%s': Successfully cached AnimationStateListener on AnimInstance '%s'."),
-                       *GetName(), *BaseAnimInstance->GetName());
-            }
-            else
-            {
-                 AnimationStateListener = nullptr; // 如果转换失败，确保接口指针为空
-                 UE_LOG(LogTemp, Warning, TEXT("EnemyCharacterBase '%s': AnimInstance '%s' does NOT implement the required Animation State Listener interface (ICharacterAnimationStateListener/IEnemyAnimationStateListener)."),
-                       *GetName(), *BaseAnimInstance->GetName());
-                 // 你可能需要确保你的 UEnemyAnimInstanceBase 实现了这个接口
-            }
-		}
-		else
-        {
-             UE_LOG(LogTemp, Warning, TEXT("EnemyCharacterBase '%s': Failed to get AnimInstance from AnimationComponent."), *GetName());
+// CacheBaseAnimInstance (修改: 缓存基础实例)
+void AEnemyCharacterBase::CacheBaseAnimInstance() { // <-- 重命名并修改逻辑
+    if (UPaperZDAnimationComponent* AnimComp = GetAnimationComponent()) {
+        CachedAnimInstancePtr = AnimComp->GetAnimInstance(); // <-- 缓存基础指针
+        if (!CachedAnimInstancePtr.IsValid()) {
+            UE_LOG(LogTemp, Warning, TEXT("EnemyCharacterBase '%s': Failed to get AnimInstance."), *GetName());
+        } else {
+             UE_LOG(LogTemp, Log, TEXT("EnemyCharacterBase '%s': Cached AnimInstance '%s'."), *GetName(), *CachedAnimInstancePtr->GetName());
         }
-	}
-    else
-    {
-         UE_LOG(LogTemp, Warning, TEXT("EnemyCharacterBase '%s': PaperZDAnimationComponent not found."), *GetName());
+    } else {
+        UE_LOG(LogTemp, Warning, TEXT("EnemyCharacterBase '%s': PaperZDAnimationComponent not found."), *GetName());
     }
 }
 
-// GetEnemyAnimInstance: 获取特定类型的动画实例
-UEnemyAnimInstanceBase* AEnemyCharacterBase::GetEnemyAnimInstance() const
-{
-    if (UPaperZDAnimationComponent* AnimComp = GetAnimationComponent())
-	{
-        // 尝试将获取到的动画实例转换为我们期望的 UEnemyAnimInstanceBase 类型
-		return Cast<UEnemyAnimInstanceBase>(AnimComp->GetAnimInstance());
-    }
-    return nullptr; // 如果无法获取或转换失败，返回空指针
-}
-TScriptInterface<IEnemyAnimationStateListener> AEnemyCharacterBase::GetEnemyAnimStateListener_Implementation() const
-{
-    // 直接返回缓存的 *敌人* 动画监听器接口
-    return AnimationStateListener;
+
+// GetEnemyAnimInstance (保留，但其用处可能减少)
+UEnemyAnimInstanceBase* AEnemyCharacterBase::GetEnemyAnimInstance() const {
+     // 注意：这里仍然尝试转换为 UEnemyAnimInstanceBase。
+     // 如果你创建了很多子类 AnimInstance，这个函数可能需要调整或弃用，
+     // 除非 UEnemyAnimInstanceBase 仍然包含你需要直接访问的公共函数或属性。
+    return Cast<UEnemyAnimInstanceBase>(CachedAnimInstancePtr.Get());
 }
