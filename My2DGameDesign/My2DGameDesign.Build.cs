@@ -10,7 +10,7 @@ public class My2DGameDesign : ModuleRules
 	
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "PaperZD","Niagara","Paper2D" });
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "AIModule" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "AIModule", "GameplayTasks" });
 
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
