@@ -68,12 +68,7 @@ protected:
     virtual void OnDeathState_Implementation(AActor* Killer) override;
     virtual void OnTakeHit_Implementation(float DamageAmount, const FVector& HitDirection, bool bInterruptsCurrentAction) override;
 
-    // --- 【移除】以下特定接口函数的 C++ 实现声明 ---
-    // virtual void OnMeleeAttackStarted_Implementation(AActor* Target) override;
-    // virtual void OnRangedAttackStarted_Implementation(AActor* Target) override;
-    // virtual void OnTeleportStateChanged_Implementation(bool bNewIsTeleporting) override;
-    // --- 【移除完毕】 ---
-
+ 
 
     // --- 内部使用的引用 (保留) ---
     UPROPERTY(Transient, BlueprintReadOnly, Category="References", meta=(AllowPrivateAccess="true"))

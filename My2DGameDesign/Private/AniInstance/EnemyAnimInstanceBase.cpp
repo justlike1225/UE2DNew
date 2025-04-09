@@ -87,7 +87,7 @@ void UEnemyAnimInstanceBase::OnDeathState_Implementation(AActor* Killer)
     this->Speed = 0.0f;
 
     // 可能触发跳转到死亡动画状态
-    // JumpToNode(FName("DeathEntry"));
+     JumpToNode(FName("DeathEntry"));
 }
 
 // IEnemyStateAnimListener
@@ -99,17 +99,13 @@ void UEnemyAnimInstanceBase::OnTakeHit_Implementation(float DamageAmount, const 
         // UE_LOG(LogTemp, Verbose, TEXT("EnemyAnimInstance '%s': OnTakeHit received. Setting bIsHurt to true."), *GetNameSafe(this));
         this->bIsHurt = true;
 
-        // 受击时可能需要重置移动状态，具体看设计
-        // this->bIsMoving = false;
+        
+         this->bIsMoving = false;
 
         // 触发动画状态机跳转到受击状态
-        // JumpToNode(FName("HurtEntry"));
+         JumpToNode(FName("HurtEntry"));
         // 注意：你需要在受击动画结束时通过 AnimNotify 或状态机逻辑将 bIsHurt 设回 false
     }
 }
 
-// --- 【删除】以下特定接口函数的 C++ 实现 ---
-// void UEnemyAnimInstanceBase::OnMeleeAttackStarted_Implementation(AActor* Target) { ... }
-// void UEnemyAnimInstanceBase::OnRangedAttackStarted_Implementation(AActor* Target) { ... }
-// void UEnemyAnimInstanceBase::OnTeleportStateChanged_Implementation(bool bNewIsTeleporting) { ... }
-// --- 【删除完毕】 ---
+ 

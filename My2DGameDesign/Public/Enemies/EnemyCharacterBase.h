@@ -15,14 +15,6 @@ class AAIController;
 class UBehaviorTree;
 class UEnemyAnimInstanceBase; // 可以保留，如果 GetEnemyAnimInstance 函数仍需要
 
-// --- 新: 引入所有 Listener 接口的前向声明 (如果 Provider 头文件没包含 TScriptInterface) ---
-// (但由于 Provider 头文件包含了 TScriptInterface，这里通常不再需要单独为 TScriptInterface<> 里的类型做前向声明)
-// class IEnemyMovementAnimListener;
-// class IEnemyStateAnimListener;
-// class IEnemyMeleeAttackAnimListener;
-// class IEnemyRangedAttackAnimListener;
-// class IEnemyTeleportAnimListener;
-
 
 /**
  * 敌人的基础角色类 (重构后)。

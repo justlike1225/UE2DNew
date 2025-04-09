@@ -1,60 +1,51 @@
 ﻿// My2DGameDesign/Private/Components/EnemyMeleeAttackComponent.cpp
+#include "Components/EnemyMeleeAttackComponent.h"
+#include "DataAssets/Enemy/EnemyMeleeAttackSettingsDA.h"
+#include "Enemies/EnemyCharacterBase.h" // 需要基类来获取接口
+#include "Enemies/EvilCreature.h"       // 需要具体类来获取碰撞体组件
+#include "Components/PrimitiveComponent.h" // 需要基础碰撞体类
+#include "Interfaces/AnimationListenerProvider/EnemySpecificAnimListenerProvider.h"
+#include "Interfaces/AnimationListener/EnemyMeleeAttackAnimListener.h"
+#include "TimerManager.h"
+#include "Components/CapsuleComponent.h"
+#include "Engine/World.h"
+// #include "Kismet/GameplayStatics.h" // 如果需要播放声音等
 
-#include "Components/EnemyMeleeAttackComponent.h" // 引入头文件
-#include "DataAssets/Enemy/EnemyMeleeAttackSettingsDA.h" // 引入数据资产头文件
-#include "Enemies/EnemyCharacterBase.h"              // 引入敌人基类头文件
-
-#include "Interfaces/Damageable.h"                   // 引入可受击接口
-#include "TimerManager.h"                            // 用于设置和清除定时器
-#include "Engine/World.h"                            // 需要 GetWorld()
-#include "GameFramework/Controller.h"              // 需要获取 Controller
-
-// 构造函数
 UEnemyMeleeAttackComponent::UEnemyMeleeAttackComponent()
 {
-	// 设置组件可在游戏开始时运行 BeginPlay
-	PrimaryComponentTick.bCanEverTick = false; // 近战攻击组件通常不需要每帧 Tick
-	SetIsReplicatedByDefault(false); // 敌人攻击逻辑通常在服务器执行，组件状态同步可能不需要（除非有特殊需求）
+	PrimaryComponentTick.bCanEverTick = false;
+	SetIsReplicatedByDefault(false);
 
-	// 初始化状态
 	bCanAttack = true;
 	bIsAttacking = false;
-    bHasAppliedDamageThisAttack = false;
+    ActiveCollisionShapeName = NAME_None;
 }
 
-// BeginPlay: 初始化
 void UEnemyMeleeAttackComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 获取并缓存 Owner 引用
 	OwnerEnemyCharacter = Cast<AEnemyCharacterBase>(GetOwner());
 	if (!OwnerEnemyCharacter.IsValid())
 	{
 		UE_LOG(LogTemp, Error, TEXT("EnemyMeleeAttackComponent '%s' requires its owner to be derived from AEnemyCharacterBase!"), *GetName());
-		// 如果 Owner 无效，这个组件就无法工作，可以选择禁用它
-        // SetActive(false);
-        // SetComponentTickEnabled(false);
+        SetActive(false);
 		return;
 	}
 
- 
-
-    // 检查数据资产是否已配置
     if(!AttackSettings)
     {
-         UE_LOG(LogTemp, Warning, TEXT("EnemyMeleeAttackComponent '%s' on Actor '%s' is missing AttackSettings Data Asset! Attack will likely fail."),
-             *GetName(), *OwnerEnemyCharacter->GetName());
+         UE_LOG(LogTemp, Warning, TEXT("EnemyMeleeAttackComponent '%s' on Actor '%s' is missing AttackSettings Data Asset!"), *GetName(), *OwnerEnemyCharacter->GetName());
     }
 }
 
-// EndPlay: 清理定时器
 void UEnemyMeleeAttackComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    // 清除可能仍在运行的冷却计时器，防止内存泄漏或意外行为
+    // 清理可能仍在运行的计时器
     if(GetWorld())
     {
         GetWorld()->GetTimerManager().ClearTimer(AttackCooldownTimer);
+        GetWorld()->GetTimerManager().ClearTimer(ActiveCollisionTimerHandle); // 清理碰撞计时器
     }
 	Super::EndPlay(EndPlayReason);
 }
@@ -62,135 +53,169 @@ void UEnemyMeleeAttackComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 
 bool UEnemyMeleeAttackComponent::ExecuteAttack(AActor* Target)
 {
-    // --- 前置检查 (保留) ---
-    if (!bCanAttack || bIsAttacking || !Target || !AttackSettings || !OwnerEnemyCharacter.IsValid())
+    // --- 前置检查 ---
+    if (!bCanAttack || bIsAttacking || !AttackSettings || !OwnerEnemyCharacter.IsValid())
     {
-        // ... (日志或直接返回)
         return false;
     }
 
-    UE_LOG(LogTemp, Log, TEXT("EnemyMeleeAttackComponent '%s': Executing Melee Attack on '%s'."),
-        *GetName(), *Target->GetName());
+    UE_LOG(LogTemp, Log, TEXT("EnemyMeleeAttackComponent '%s': Executing Melee Attack."), *GetName()); // 不再强调目标
 
-    // --- 开始攻击流程 (保留) ---
-    bIsAttacking = true;
+    // --- 开始攻击流程 ---
+    bIsAttacking = true; // 标记整个攻击流程开始（直到冷却结束）
     bCanAttack = false;
-    bHasAppliedDamageThisAttack = false;
-    CurrentTarget = Target;
+    BeginAttackSwing();    // 清空本次挥砍的命中记录
     StartAttackCooldown(); // 启动冷却
 
-    // --- 修改：尝试通知动画实例 ---
-    // 检查 Owner 是否实现了新的 Provider 接口
-    IEnemySpecificAnimListenerProvider* Provider = Cast<IEnemySpecificAnimListenerProvider>(OwnerEnemyCharacter.Get());
-    if (Provider)
+    // --- 通知动画实例 ---
+    TScriptInterface<IEnemyMeleeAttackAnimListener> Listener = GetAnimListener();
+    if (Listener)
     {
-        // 通过 Provider 获取【特定】的 Melee Listener 接口
-        TScriptInterface<IEnemyMeleeAttackAnimListener> MeleeListener = Provider->Execute_GetMeleeAttackAnimListener(OwnerEnemyCharacter.Get());
+        // Target 仍然可以传递给动画实例，用于视觉或其他逻辑（例如，攻击时更精确地朝向目标）
+        Listener->Execute_OnMeleeAttackStarted(Listener.GetObject(), Target);
+    }
+     else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("EnemyMeleeAttackComponent '%s': Could not get valid MeleeAnimListener from owner."), *GetName());
+    }
 
-        // 检查获取到的接口是否有效
-        if (MeleeListener)
-        {
-            // 有效，则调用接口函数通知动画实例
-            MeleeListener->Execute_OnMeleeAttackStarted(MeleeListener.GetObject(), Target);
-            UE_LOG(LogTemp, Verbose, TEXT("EnemyMeleeAttackComponent '%s': Notified Animation Listener (Melee) to start attack."), *GetName());
-        }
-        else
-        {
-            // 获取失败，说明 Owner 的 AnimInstance 没有实现 IEnemyMeleeAttackAnimListener
-            UE_LOG(LogTemp, Warning, TEXT("EnemyMeleeAttackComponent '%s': Owner ('%s') does not provide a valid IEnemyMeleeAttackAnimListener. Animation might not play."),
-                *GetName(), *OwnerEnemyCharacter->GetName());
-        }
-    }
-    else
-    {
-        // Owner 没有实现 Provider 接口，这通常不应该发生，除非 Owner 不是我们修改后的 AEnemyCharacterBase
-        UE_LOG(LogTemp, Error, TEXT("EnemyMeleeAttackComponent '%s': Owner ('%s') does not implement IEnemySpecificAnimListenerProvider! Cannot get Anim Listener."),
-            *GetName(), *OwnerEnemyCharacter->GetName());
-    }
-    // --- 动画通知结束 ---
+    // 注意：我们不再需要在这里存储 CurrentTarget 了
 
     return true; // 攻击成功开始
 }
 
-// HandleDamageApplication: 由 AnimNotify 调用来施加伤害
-void UEnemyMeleeAttackComponent::HandleDamageApplication()
+void UEnemyMeleeAttackComponent::ActivateMeleeCollision(FName ShapeIdentifier, float Duration)
 {
-	// --- 安全检查 ---
-    // 1. 是否处于攻击状态中? (防止非攻击状态下误触发)
-    // 2. 本次攻击是否已经施加过伤害了? (防止重复伤害)
-    // 3. 当前目标是否还有效? (可能在动画播放过程中目标死亡或消失)
-    // 4. 配置和 Owner 是否有效?
-	if (!bIsAttacking || bHasAppliedDamageThisAttack || !CurrentTarget.IsValid() || !AttackSettings || !OwnerEnemyCharacter.IsValid())
+	// 获取 Owner Actor
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor || Duration <= 0) return;
+
+	// --- 通过接口获取碰撞体 ---
+	UPrimitiveComponent* ShapeToActivate = nullptr;
+	// 尝试将 Owner 转换为 IMeleeShapeProvider 接口
+	if (IMeleeShapeProvider* ShapeProvider = Cast<IMeleeShapeProvider>(OwnerActor))
 	{
-        // UE_LOG(LogTemp, Warning, TEXT("EnemyMeleeAttackComponent '%s': HandleDamageApplication called but checks failed (IsAttacking:%s, HasAppliedDamage:%s, TargetValid:%s, Settings:%s, Owner:%s)"),
-        //     *GetName(), bIsAttacking?TEXT("T"):TEXT("F"), bHasAppliedDamageThisAttack?TEXT("T"):TEXT("F"), CurrentTarget.IsValid()?TEXT("T"):TEXT("F"), AttackSettings?TEXT("T"):TEXT("F"), OwnerEnemyCharacter.IsValid()?TEXT("T"):TEXT("F"));
-		return;
+		// 如果 Owner 实现了接口，调用接口函数获取形状
+		ShapeToActivate = IMeleeShapeProvider::Execute_GetMeleeShapeComponent(OwnerActor, ShapeIdentifier);
 	}
+	else
+	{
+		// Owner 没有实现接口，无法获取形状
+		UE_LOG(LogTemp, Warning, TEXT("ActivateMeleeCollision: Owner '%s' does not implement IMeleeShapeProvider."), *OwnerActor->GetName());
+		return; // 无法继续
+	}
+	// --- 接口使用结束 ---
 
-    UE_LOG(LogTemp, Log, TEXT("EnemyMeleeAttackComponent '%s': AnimNotify triggered HandleDamageApplication on target '%s'."),
-        *GetName(), *CurrentTarget->GetName());
+	if (ShapeToActivate) // 检查接口是否返回了有效的形状
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("EnemyMeleeAttackComponent: Activating collision shape '%s' for %.2f seconds."), *ShapeIdentifier.ToString(), Duration);
+		BeginAttackSwing();
+		ShapeToActivate->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		ActiveCollisionShapeName = ShapeIdentifier;
 
-	// --- 执行伤害逻辑 ---
-	AActor* TargetActor = CurrentTarget.Get(); // 获取目标 Actor 的强指针
-    AActor* DamageCauser = OwnerEnemyCharacter.Get(); // 伤害来源是敌人自己
-    AController* InstigatorController = OwnerEnemyCharacter->GetController(); // 获取敌人的控制器
-
-    // 检查目标是否实现了 IDamageable 接口
-    if (TargetActor->GetClass()->ImplementsInterface(UDamageable::StaticClass()))
-    {
-        // 从数据资产获取伤害值
-        float DamageToApply = AttackSettings->AttackDamage;
-
-        // 通过接口调用目标的 ApplyDamage 函数
-        IDamageable::Execute_ApplyDamage(TargetActor, DamageToApply, DamageCauser, InstigatorController, FHitResult()); // 最后参数是空的 HitResult
-        UE_LOG(LogTemp, Verbose, TEXT("EnemyMeleeAttackComponent: Applied %.1f damage to '%s' via IDamageable interface."), DamageToApply, *TargetActor->GetName());
-
-        // 标记本次攻击已成功施加伤害
-        bHasAppliedDamageThisAttack = true;
-
-        // (可选) 在这里播放命中特效和声音
-        // if(AttackSettings->HitEffect) { UGameplayStatics::SpawnEmitterAtLocation(...) }
-        // if(AttackSettings->HitSound) { UGameplayStatics::PlaySoundAtLocation(...) }
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("EnemyMeleeAttackComponent '%s': Target '%s' does not implement IDamageable interface. No damage applied."),
-            *GetName(), *TargetActor->GetName());
-    }
-
-    // 注意：伤害判定范围的检查可以放在这里，例如：
-    // float DistanceSq = FVector::DistSquared(DamageCauser->GetActorLocation(), TargetActor->GetActorLocation());
-    // float AttackRangeSq = FMath::Square(AttackSettings->AttackRange * 1.1f); // 可以给范围一点容错
-    // if (DistanceSq <= AttackRangeSq) { ... 应用伤害 ... }
-    // 但通常依赖 AnimNotify 触发时目标就在范围内更简单。
+		if (GetWorld())
+		{
+			GetWorld()->GetTimerManager().ClearTimer(ActiveCollisionTimerHandle);
+			FTimerDelegate TimerDelegate;
+			TimerDelegate.BindUFunction(this, FName("DeactivateMeleeCollision"), ShapeIdentifier);
+			GetWorld()->GetTimerManager().SetTimer(ActiveCollisionTimerHandle, TimerDelegate, Duration, false);
+		}
+	}
+	else
+	{
+		// 接口返回了 nullptr，说明 Owner (实现了接口) 没有提供这个标识符对应的形状
+		UE_LOG(LogTemp, Warning, TEXT("EnemyMeleeAttackComponent: Owner '%s' (IMeleeShapeProvider) did not provide a shape for identifier '%s'."), *OwnerActor->GetName(), *ShapeIdentifier.ToString());
+	}
 }
 
-// StartAttackCooldown: 启动冷却计时器
+
+void UEnemyMeleeAttackComponent::DeactivateMeleeCollision(FName ShapeIdentifier)
+{
+     if (!OwnerEnemyCharacter.IsValid() || ShapeIdentifier == NAME_None || ShapeIdentifier != ActiveCollisionShapeName) return; // 确保关闭的是当前激活的
+
+     AEvilCreature* OwnerCreature = Cast<AEvilCreature>(OwnerEnemyCharacter.Get());
+     if(!OwnerCreature) return; // 理论上不会发生，因为激活时检查过
+
+     UPrimitiveComponent* ShapeToDeactivate = OwnerCreature->GetMeleeHitShapeComponent(ShapeIdentifier);
+
+	if (ShapeToDeactivate)
+	{
+        // 确保计时器确实指向了这个函数调用，清除计时器句柄
+         if (GetWorld())
+         {
+            GetWorld()->GetTimerManager().ClearTimer(ActiveCollisionTimerHandle);
+         }
+
+        UE_LOG(LogTemp, Verbose, TEXT("EnemyMeleeAttackComponent: Deactivating collision shape '%s'."), *ShapeIdentifier.ToString());
+		ShapeToDeactivate->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        ActiveCollisionShapeName = NAME_None; // 清除激活记录
+
+        // 在这里不清空 HitActorsThisSwing，BeginAttackSwing 会在下次激活时清空
+	}
+}
+
+
 void UEnemyMeleeAttackComponent::StartAttackCooldown()
 {
-	if (AttackSettings && AttackSettings->AttackCooldown > 0)
+	if (AttackSettings && AttackSettings->AttackCooldown > 0 && GetWorld())
 	{
-        // UE_LOG(LogTemp, Verbose, TEXT("EnemyMeleeAttackComponent '%s': Starting cooldown for %.2f seconds."), *GetName(), AttackSettings->AttackCooldown);
-		GetWorld()->GetTimerManager().SetTimer(
-            AttackCooldownTimer, // 定时器句柄
-            this,                           // 调用函数的对象
-            &UEnemyMeleeAttackComponent::OnAttackCooldownFinished, // 要调用的函数
-            AttackSettings->AttackCooldown, // 延迟时间（从数据资产读取）
-            false                           // false 表示不循环
-        );
+        // 防止重复启动冷却计时器
+         if (!GetWorld()->GetTimerManager().IsTimerActive(AttackCooldownTimer))
+         {
+            GetWorld()->GetTimerManager().SetTimer(
+                AttackCooldownTimer,
+                this,
+                &UEnemyMeleeAttackComponent::OnAttackCooldownFinished,
+                AttackSettings->AttackCooldown,
+                false
+            );
+         }
 	}
-	else // 如果没有设置冷却时间，则立即完成冷却（相当于可以连续攻击）
+	else
 	{
-		OnAttackCooldownFinished();
+		OnAttackCooldownFinished(); // 立即结束冷却
 	}
 }
 
-// OnAttackCooldownFinished: 冷却结束时调用
 void UEnemyMeleeAttackComponent::OnAttackCooldownFinished()
 {
-    // UE_LOG(LogTemp, Verbose, TEXT("EnemyMeleeAttackComponent '%s': Cooldown finished."), *GetName());
-	bCanAttack = true;   // 标记为可以再次攻击
-    bIsAttacking = false; // 标记攻击状态结束
-    CurrentTarget = nullptr; // 清除当前目标
-    // bHasAppliedDamageThisAttack 会在下次 ExecuteAttack 时重置
+    UE_LOG(LogTemp, Verbose, TEXT("EnemyMeleeAttackComponent '%s': Cooldown finished."), *GetName());
+	bCanAttack = true;
+    bIsAttacking = false; // 整个攻击流程结束
+    // 清空可能残留的激活碰撞体状态
+    if(ActiveCollisionShapeName != NAME_None)
+    {
+        DeactivateMeleeCollision(ActiveCollisionShapeName);
+    }
 }
+
+TScriptInterface<IEnemyMeleeAttackAnimListener> UEnemyMeleeAttackComponent::GetAnimListener() const
+{
+    if (OwnerEnemyCharacter.IsValid())
+	{
+		if (IEnemySpecificAnimListenerProvider* Provider = Cast<IEnemySpecificAnimListenerProvider>(OwnerEnemyCharacter.Get()))
+		{
+			TScriptInterface<IEnemyMeleeAttackAnimListener> Listener = Provider->Execute_GetMeleeAttackAnimListener(OwnerEnemyCharacter.Get());
+			if (Listener)
+			{
+				return Listener;
+			}
+		}
+	}
+	return nullptr;
+}
+
+void UEnemyMeleeAttackComponent::BeginAttackSwing()
+{
+    // 清空本次攻击命中的目标记录
+    HitActorsThisSwing.Empty();
+    // UE_LOG(LogTemp, Verbose, TEXT("EnemyMeleeAttackComponent: Cleared HitActorsThisSwing for new swing."));
+}
+
+// HandleDamageApplication 函数现在不需要了
+/*
+void UEnemyMeleeAttackComponent::HandleDamageApplication()
+{
+    // ... (旧逻辑移除) ...
+}
+*/

@@ -1,44 +1,34 @@
 ﻿// My2DGameDesign/Public/Components/EnemyMeleeAttackComponent.h
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "TimerManager.h" // <-- 包含 TimerManager
+#include "Containers/Set.h" // <-- 包含 TSet
 #include "EnemyMeleeAttackComponent.generated.h"
 
-
 // --- 前向声明 ---
-class UEnemyMeleeAttackSettingsDA; // 我们的数据资产
-class AEnemyCharacterBase;         // 敌人角色基类
-class AActor;                     // Actor 基类
-class FTimerManager;              // 需要 TimerManager 来处理定时器句柄
+class UEnemyMeleeAttackSettingsDA;
+class AEnemyCharacterBase;
+class AActor;
+class IEnemyMeleeAttackAnimListener; // 需要监听器接口
+template<class InterfaceType> class TScriptInterface; // 需要 TScriptInterface
 
-/**
- * 负责处理敌人近战攻击逻辑的组件。
- */
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class MY2DGAMEDESIGN_API UEnemyMeleeAttackComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	// 构造函数
 	UEnemyMeleeAttackComponent();
 
 	/**
 	 * @brief 由 AI 或其他系统调用以执行一次近战攻击。
-	 * @param Target 要攻击的目标 Actor。
+	 * @param Target (可选参数，现在主要用于朝向或AI决策，不再直接用于伤害) 要攻击的目标 Actor。
 	 * @return 如果成功开始攻击（不在冷却中且不在攻击中），则返回 true。
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Enemy Attack | Melee")
-	bool ExecuteAttack(AActor* Target);
-
-	/**
-	 * @brief 由动画通知 (AnimNotify) 在攻击动画的伤害判定帧调用。
-	 * 负责实际对目标应用伤害。
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Enemy Attack | Melee | AnimNotify")
-	void HandleDamageApplication();
+	bool ExecuteAttack(AActor* Target = nullptr); // Target 变为可选
 
 	/** 查询当前是否可以执行攻击 (主要检查冷却时间) */
 	UFUNCTION(BlueprintPure, Category = "Enemy Attack | Melee | Status")
@@ -48,56 +38,74 @@ public:
     UFUNCTION(BlueprintPure, Category = "Enemy Attack | Melee | Status")
     bool IsAttacking() const { return bIsAttacking; }
 
+    // --- 由 AnimNotify 调用 ---
+    /**
+     * @brief 在攻击动画的伤害判定开始时调用，激活对应的碰撞体。
+     * @param ShapeIdentifier 要激活的碰撞体的名称 (来自 AEvilCreature::EvilCreatureAttackShapeNames)。
+     * @param Duration 碰撞体保持激活状态的持续时间（秒）。
+     */
+    UFUNCTION(BlueprintCallable, Category = "Enemy Attack | Melee | AnimNotify")
+    void ActivateMeleeCollision(FName ShapeIdentifier, float Duration = 0.1f); // 提供默认持续时间
+
+    /**
+     * @brief 在攻击动画的伤害判定结束时（或由计时器）调用，停用对应的碰撞体。
+     * @param ShapeIdentifier 要停用的碰撞体的名称。
+     */
+    UFUNCTION(BlueprintCallable, Category = "Enemy Attack | Melee | AnimNotify") // 也可以由计时器调用
+    void DeactivateMeleeCollision(FName ShapeIdentifier);
+
+
+    // --- 公开的数据资产引用，方便在 AEvilCreature 中访问 ---
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy Attack | Melee | Configuration")
+	TObjectPtr<UEnemyMeleeAttackSettingsDA> AttackSettings;
+
+    // --- 公开的命中记录集合，方便在 AEvilCreature 的 HandleMeleeHit 中访问和修改 ---
+    UPROPERTY(Transient) // 瞬态，不需要保存
+    TSet<TObjectPtr<AActor>> HitActorsThisSwing;
+
 
 protected:
 	// 生命周期函数
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	/**
-	 * @brief 指向配置此攻击的数据资产。
-	 * 需要在蓝图或 C++ 中为使用此组件的敌人配置这个属性。
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy Attack | Melee | Configuration")
-	TObjectPtr<UEnemyMeleeAttackSettingsDA> AttackSettings;
-
 	// --- 内部状态 ---
-
-	/** 标记当前是否可以攻击（冷却时间是否结束） */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Enemy Attack | Melee | Status", meta=(AllowPrivateAccess="true"))
 	bool bCanAttack = true;
 
-	/** 标记当前是否正在执行一次攻击（从 ExecuteAttack 开始到冷却结束）*/
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Enemy Attack | Melee | Status", meta=(AllowPrivateAccess="true"))
-    bool bIsAttacking = false;
+    bool bIsAttacking = false; // 标记整个攻击流程是否在进行中
 
-	/** 存储当前攻击的目标，以便 AnimNotify 函数知道对谁造成伤害 */
-    UPROPERTY(VisibleInstanceOnly, Transient, Category = "Enemy Attack | Melee | Status", meta=(AllowPrivateAccess="true"))
-    TWeakObjectPtr<AActor> CurrentTarget; // 使用弱指针，防止目标被销毁后指针悬空
+    // 移除 CurrentTarget (不再依赖它施加伤害)
+    // TWeakObjectPtr<AActor> CurrentTarget;
+
+    // 移除 bHasAppliedDamageThisAttack (逻辑移到 HitActorsThisSwing)
 
 	/** 攻击冷却计时器的句柄 */
 	FTimerHandle AttackCooldownTimer;
-
-    /** 标记在本次攻击动画中是否已经施加了伤害 (防止 AnimNotify 重复触发伤害) */
-    bool bHasAppliedDamageThisAttack = false;
+    /** 当前激活的攻击碰撞体的关闭计时器句柄 */
+    FTimerHandle ActiveCollisionTimerHandle;
+    /** 当前激活的碰撞体的名称 (用于关闭) */
+    FName ActiveCollisionShapeName;
 
 
 	// --- 内部引用 ---
-
-	/** 指向拥有此组件的敌人角色的弱指针 */
 	UPROPERTY(Transient)
 	TWeakObjectPtr<AEnemyCharacterBase> OwnerEnemyCharacter;
 
-	
 
 private:
-	// --- 内部辅助函数 ---	
-
+	// --- 内部辅助函数 ---
 	/** 启动攻击冷却计时器 */
 	void StartAttackCooldown();
 
 	/** 当攻击冷却计时器结束时调用 */
-	UFUNCTION() // UFUNCTION 宏是定时器回调函数所必需的
+	UFUNCTION()
 	void OnAttackCooldownFinished();
 
+    /** 获取动画监听器接口 */
+    TScriptInterface<IEnemyMeleeAttackAnimListener> GetAnimListener() const;
+
+    /** 开始一次攻击挥砍时调用（清空命中记录）*/
+    void BeginAttackSwing();
 };
