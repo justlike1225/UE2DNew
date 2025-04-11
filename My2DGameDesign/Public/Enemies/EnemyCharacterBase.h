@@ -13,7 +13,7 @@ class UHealthComponent;
 class UPaperZDAnimInstance;
 class AAIController;
 class UEnemyAnimInstanceBase;
-
+class UCharacterMovementSettingsDA;
 UCLASS(Abstract)
 class MY2DGAMEDESIGN_API AEnemyCharacterBase : public APaperZDCharacter,
                                                public IDamageable,
@@ -30,6 +30,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Components | Health")
 	UHealthComponent* GetHealthComponent() const { return HealthComponent; }
 
+	/** @brief 该敌人使用的运动属性配置数据资产 */ // <--- 新增属性
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration | Movement")
+	TObjectPtr<UCharacterMovementSettingsDA> MovementSettings;
 	virtual float ApplyDamage_Implementation(float DamageAmount, AActor* DamageCauser,
 	                                         AController* InstigatorController, const FHitResult& HitResult) override;
 
@@ -66,4 +69,6 @@ protected:
 
 private:
 	void CacheBaseAnimInstance();
+	/** @brief 应用 MovementSettings 数据资产中的配置到移动组件 */ // <--- 新增辅助函数声明
+	void ApplyMovementSettings();
 };

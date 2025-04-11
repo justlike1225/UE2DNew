@@ -9,6 +9,7 @@
 #include "UObject/ScriptInterface.h"
 #include "PaperZDCharacter_SpriteHero.generated.h"
 
+class UCharacterMovementSettingsDA;
 class UPaperZDAnimInstance;
 class UHeroCombatComponent;
 class UDashComponent;
@@ -33,7 +34,8 @@ class MY2DGAMEDESIGN_API APaperZDCharacter_SpriteHero : public APaperZDCharacter
 
 public:
 	APaperZDCharacter_SpriteHero();
-
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration | Movement")
+	TObjectPtr<UCharacterMovementSettingsDA> MovementSettings;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Team")
 	FGenericTeamId TeamId = FGenericTeamId(0);
 
@@ -90,12 +92,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> RunAction;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0"))
-	float WalkSpeed = 100.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0"))
-	float RunSpeed = 300.f;
-
+	float CachedWalkSpeed = 200.f;
+	float CachedRunSpeed = 500.f;
+	
 	bool bIsCanJump = false;
 	bool bIsWalking = false;
 	bool bIsRunning = false;
@@ -121,4 +120,8 @@ protected:
 	void InitializeMovementParameters();
 	void SetupCamera();
 	void SetDirection(float Direction) const;
+
+private:
+	void ApplyMovementSettings(); 
+	void CacheMovementSpeeds(); 
 };

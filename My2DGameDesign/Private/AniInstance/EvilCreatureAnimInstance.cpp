@@ -6,8 +6,7 @@ void UEvilCreatureAnimInstance::OnMeleeAttackStarted_Implementation(AActor* Targ
 	this->MeleeAttackIndex = AttackIndex;
 	this->bIsAttackingMelee = true;
 
-	// 这里可以添加更多的逻辑，比如播放攻击动画或其他效果
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Melee Attack Started"));
+	
 }
 
 

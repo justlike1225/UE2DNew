@@ -23,13 +23,6 @@ public:
 	// EditAnywhere: 可在编辑器中随时修改; BlueprintReadOnly: 蓝图可读; meta: 附加信息，这里限制最小值为0
 	float AttackDamage = 15.0f; // 提供一个默认值
 
-	/**
-	 * @brief 攻击范围（半径或半高）。
-	 * 主要用于 AI 判断是否进入了可以发动近战攻击的距离。
-	 * 实际的伤害判定范围通常由动画通知 (AnimNotify) 触发时的碰撞检测逻辑决定。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Melee Attack", meta = (ClampMin = "1.0"))
-	float AttackRange = 50.0f; // 提供一个默认值 (单位：厘米/Unreal Unit)
 
 	/** @brief 成功执行一次近战攻击后的冷却时间（秒）。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Melee Attack", meta = (ClampMin = "0.0"))

@@ -57,12 +57,10 @@ EBTNodeResult::Type UBTTask_ExecuteMeleeAttack::ExecuteTask(UBehaviorTreeCompone
 	}
 	UE_LOG(LogTemp, Log, TEXT("--- BTTask_ExecuteMeleeAttack: Task Started for %s ---"),
 	       *ControlledPawn->GetName()); // <<< LOG 1: 任务开始
-
-	// 从黑板获取目标 Actor
-	AActor* TargetActor = nullptr;
+	
 	
 
-	TargetActor =Cast<AActor> (BlackboardComp->GetValueAsObject(TargetActorKey.SelectedKeyName));
+	AActor* TargetActor =Cast<AActor> (BlackboardComp->GetValueAsObject(TargetActorKey.SelectedKeyName));
     //  输出 TargetActor 的值
 	GEngine  ->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("BTTask_ExecuteMeleeAttack: TargetActor: %s"), *GetNameSafe(TargetActor))); // 调试信息
 	if (TargetActorKey.IsSet()) // 检查 Key 是否在编辑器中设置了

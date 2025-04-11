@@ -8,6 +8,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "DataAssets/CharacterMovementSettingsDA.h"
 #include "Interfaces/AnimationListener//EnemyMovementAnimListener.h"
 #include "Interfaces/AnimationListener//EnemyStateAnimListener.h"
 #include "Interfaces/AnimationListener//EnemyMeleeAttackAnimListener.h"
@@ -50,8 +51,50 @@ void AEnemyCharacterBase::BeginPlay()
 	{
 		HealthComponent->OnDeath.AddDynamic(this, &AEnemyCharacterBase::HandleDeath);
 	}
+	ApplyMovementSettings();
 }
 
+// 新增辅助函数实现
+void AEnemyCharacterBase::ApplyMovementSettings()
+{
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	if (!MoveComp)
+	{
+		UE_LOG(LogTemp, Error, TEXT("ApplyMovementSettings: CharacterMovementComponent is missing on %s!"), *GetNameSafe(this));
+		return;
+	}
+
+	if (MovementSettings) // 检查数据资产是否有效
+	{
+		UE_LOG(LogTemp, Log, TEXT("ApplyMovementSettings: Applying MovementSettings DA '%s' to %s"), *GetNameSafe(MovementSettings), *GetNameSafe(this));
+
+		// --- 从数据资产应用设置到移动组件 ---
+		MoveComp->MaxWalkSpeed = MovementSettings->MaxWalkSpeed;
+		// 敌人通常不区分跑/走，但如果需要，可以读取 MaxRunSpeed
+		MoveComp->MaxAcceleration = MovementSettings->MaxAcceleration;
+		MoveComp->GroundFriction = MovementSettings->GroundFriction;
+		MoveComp->BrakingDecelerationWalking = MovementSettings->BrakingDecelerationWalking;
+		MoveComp->JumpZVelocity = MovementSettings->JumpZVelocity;
+		MoveComp->AirControl = MovementSettings->AirControl;
+		MoveComp->GravityScale = MovementSettings->GravityScale;
+		// ... 应用其他你添加到数据资产的属性 ...
+	}
+	else
+	{
+		// 如果没有指定数据资产，可以选择:
+		// 1. 记录警告，使用移动组件的默认值。
+		// 2. 在这里设置一套硬编码的默认值。
+		UE_LOG(LogTemp, Warning, TEXT("ApplyMovementSettings: MovementSettings DataAsset is not assigned to %s. Using default CharacterMovementComponent values."), *GetNameSafe(this));
+		
+		 MoveComp->MaxWalkSpeed = 150.0f;
+		 MoveComp->JumpZVelocity = 350.0f;
+		 MoveComp->GravityScale = 1.2f;
+		 MoveComp ->AirControl = 0.5f;
+		 MoveComp ->BrakingDecelerationWalking = 0.5f;
+		 
+		
+	}
+}
 void AEnemyCharacterBase::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
