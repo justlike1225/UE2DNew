@@ -24,37 +24,41 @@ void UEnemyAnimInstanceBase::OnInit_Implementation()
 		{
 		}
 	}
-	
 }
 
 void UEnemyAnimInstanceBase::OnTick_Implementation(float DeltaTime)
 {
 	Super::OnTick_Implementation(DeltaTime);
 
+	// 确保我们有有效的移动组件引用
+	if (!OwnerMovementComponent.IsValid())
+	{
+		if (OwnerEnemyCharacter.IsValid()) { OwnerMovementComponent = OwnerEnemyCharacter->GetCharacterMovement(); }
 
-	if (OwnerMovementComponent.IsValid())
-	{
-		bIsFalling = OwnerMovementComponent->IsFalling();
-	}
-	else if (OwnerEnemyCharacter.IsValid())
-	{
-		OwnerMovementComponent = OwnerEnemyCharacter->GetCharacterMovement();
-		if (OwnerMovementComponent.IsValid()) { bIsFalling = OwnerMovementComponent->IsFalling(); }
-		else
+		if (!OwnerMovementComponent.IsValid())
 		{
-			bIsFalling = true;
-			Speed = 0.f;
-			bIsMoving = false;
+			// 如果无法获取移动组件，设置状态为静止/坠落，然后返回
+			this->Speed = 0.0f;
+			this->bIsMoving = false;
+			return;
 		}
 	}
-	else
-	{
-		bIsFalling = true;
-		Speed = 0.f;
-		bIsMoving = false;
-	}
-}
 
+	// --- 从移动组件获取状态 ---
+	// 检查是否在空中/坠落
+	this->bIsFalling = OwnerMovementComponent->IsFalling();
+
+	// 获取当前速度向量
+	FVector Velocity = OwnerMovementComponent->Velocity;
+
+	// --- 更新动画实例的变量 ---
+	// 计算水平速率 (XY平面上的速度大小)
+	this->Speed = FVector::DotProduct(Velocity, OwnerMovementComponent->GetOwner()->GetActorForwardVector());
+	// this->Speed = Velocity.Size2D();
+	// 判断是否在移动 (速率大于一个很小的阈值)
+	this->bIsMoving = this->Speed > KINDA_SMALL_NUMBER; // KINDA_SMALL_NUMBER 通常是 1e-4f
+	
+}
 
 void UEnemyAnimInstanceBase::OnMovementStateChanged_Implementation(float InSpeed, bool bInIsFalling, bool bInIsMoving)
 {

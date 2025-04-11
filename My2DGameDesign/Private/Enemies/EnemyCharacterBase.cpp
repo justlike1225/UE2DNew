@@ -20,7 +20,24 @@ AEnemyCharacterBase::AEnemyCharacterBase()
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 	AIControllerClass = AAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-	bIsFacingRight = true;
+	bIsFacingRight = bAssetFacesRightByDefault;
+
+	
+	// --- 关键配置：阻止移动组件自动旋转角色 ---
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->bUseControllerDesiredRotation = false;
+
+		
+		MoveComp->bOrientRotationToMovement = false;
+
+		MoveComp->RotationRate = FRotator(0.f, 0.f, 0.f);
+
+		
+		MoveComp->bConstrainToPlane = true;
+		MoveComp->SetPlaneConstraintAxisSetting(EPlaneConstraintAxisSetting::Y); // 通常约束在 Y=0 的平面
+		MoveComp->SetPlaneConstraintNormal(FVector(0.f, 1.f, 0.f)); // 平面法线指向 Y 轴
+	}
 }
 
 void AEnemyCharacterBase::BeginPlay()
@@ -66,9 +83,7 @@ void AEnemyCharacterBase::PossessedBy(AController* NewController)
 			{
 			}
 		}
-		else
-		{
-		}
+	
 	}
 }
 
@@ -162,51 +177,43 @@ void AEnemyCharacterBase::HandleDeath(AActor* Killer)
 	{
 		StateListener->Execute_OnDeathState(StateListener.GetObject(), Killer);
 	}
-
-
 	SetLifeSpan(5.0f);
 }
 
+
+// 设置角色朝向 (包含日志)
 void AEnemyCharacterBase::SetFacingDirection(bool bWantsToFaceRight)
 {
-	// 1. 检查是否真的需要转向 (如果当前朝向和目标朝向一致，则无需操作)
+	
 	if (bIsFacingRight == bWantsToFaceRight)
 	{
+		UE_LOG(LogTemp, Log, TEXT("    SetFacingDirection: Already facing the desired direction (bIsFacingRight=%s). Returning."), bIsFacingRight ? TEXT("true") : TEXT("false")); // <<< LOG B: 无需转向
 		return;
 	}
 
-	// 2. 更新内部状态变量，记录当前朝向
-	bIsFacingRight = bWantsToFaceRight;
+	UE_LOG(LogTemp, Log, TEXT("    SetFacingDirection: Current bIsFacingRight=%s, Changing direction."), bIsFacingRight ? TEXT("true") : TEXT("false")); // <<< LOG C: 准备转向
+	bIsFacingRight = bWantsToFaceRight; // 更新内部状态
 
-	// 3. 获取角色的 Sprite 组件 (PaperFlipbookComponent)
-	UPaperFlipbookComponent* SpriteComponent = GetSprite();
+	UPaperFlipbookComponent* SpriteComponent = GetSprite(); // 获取 Sprite 组件
 	if (SpriteComponent)
 	{
-		// 4. 获取当前的缩放值
 		FVector CurrentScale = SpriteComponent->GetRelativeScale3D();
-		// 获取 X 轴缩放的绝对值 (保持原始大小)
 		float AbsScaleX = FMath::Abs(CurrentScale.X);
-		// 防止原始缩放为 0 导致问题
-		if (FMath::IsNearlyZero(AbsScaleX))
-		{
-			AbsScaleX = 1.0f;
-		}
-
-		// 5. 计算目标缩放符号 (正数或负数)
-		float TargetSign;
-
-		// 检查期望的朝向 (bWantsToFaceRight) 是否与美术资源默认朝向 (bAssetFacesRightByDefault) 一致
-		// bAssetFacesRightByDefault 是你在 AEnemyCharacterBase.h 中定义的一个布尔值，
-		// 用于处理美术资源本身是朝左还是朝右绘制的情况。
+		if (FMath::IsNearlyZero(AbsScaleX)) { AbsScaleX = 1.0f; } // 防止缩放为0
+		
 		bool bDirectionMatchesAsset = (bWantsToFaceRight == bAssetFacesRightByDefault);
-		// 如果一致，目标符号为正 (1.0)，不一致则为负 (-1.0)
-		TargetSign = bDirectionMatchesAsset ? 1.0f : -1.0f;
+		float TargetSign = bDirectionMatchesAsset ? 1.0f : -1.0f; // 计算符号
+		float NewScaleX = AbsScaleX * TargetSign; // 计算新的 X 轴缩放
 
-		// 6. 计算新的 X 轴缩放值
-		float NewScaleX = AbsScaleX * TargetSign;
-		// 7. 应用新的缩放值到 Sprite 组件，完成视觉上的翻转
+
 		SpriteComponent->SetRelativeScale3D(FVector(NewScaleX, CurrentScale.Y, CurrentScale.Z));
 	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("    SetFacingDirection: Failed to get SpriteComponent!")); // <<< LOG F: 获取 Sprite 失败
+	}
+
+
 }
 
 void AEnemyCharacterBase::CacheBaseAnimInstance()
