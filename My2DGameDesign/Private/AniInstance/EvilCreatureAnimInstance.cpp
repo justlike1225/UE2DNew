@@ -1,24 +1,22 @@
-﻿// My2DGameDesign/Private/AniInstance/EvilCreatureAnimInstance.cpp
-#include "AniInstance/EvilCreatureAnimInstance.h"
-#include "GameFramework/Actor.h" // For AActor* Target
+﻿#include "AniInstance/EvilCreatureAnimInstance.h"
+#include "GameFramework/Actor.h"
 
-// --- 接口实现 ---
-
-void UEvilCreatureAnimInstance::OnMeleeAttackStarted_Implementation(AActor* Target)
+void UEvilCreatureAnimInstance::OnMeleeAttackStarted_Implementation(AActor* Target, int32 AttackIndex)
 {
-	// UE_LOG(LogTemp, Verbose, TEXT("EvilCreatureAnimInstance: Received OnMeleeAttackStarted."));
+	this->MeleeAttackIndex = AttackIndex;
 	this->bIsAttackingMelee = true;
-	UE_LOG(LogTemp, Log, TEXT("EvilCreatureAnimInstance: OnMeleeAttackStarted called. bIsAttackingMelee set to: %s, MeleeAttackIndex set to: %d"),
-		this->bIsAttackingMelee ? TEXT("True") : TEXT("False"),
-		this->MeleeAttackIndex);
+
+	// 这里可以添加更多的逻辑，比如播放攻击动画或其他效果
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Melee Attack Started"));
 }
+
+
 void UEvilCreatureAnimInstance::OnTeleportStateChanged_Implementation(bool bNewIsTeleporting)
 {
-	// UE_LOG(LogTemp, Verbose, TEXT("EvilCreatureAnimInstance: Received OnTeleportStateChanged - New State: %s"), bNewIsTeleporting ? TEXT("True") : TEXT("False"));
 	this->bIsTeleporting = bNewIsTeleporting;
 
-	// 如果传送开始，可能需要重置其他状态，例如停止攻击
-	if(bNewIsTeleporting)
+
+	if (bNewIsTeleporting)
 	{
 		this->bIsAttackingMelee = false;
 		this->MeleeAttackIndex = 0;
@@ -27,8 +25,6 @@ void UEvilCreatureAnimInstance::OnTeleportStateChanged_Implementation(bool bNewI
 
 void UEvilCreatureAnimInstance::HandleMeleeAttackEnd_Implementation()
 {
-	// 把原来的逻辑放在这里
-	// UE_LOG(LogTemp, Verbose, TEXT("EvilCreatureAnimInstance: Received HandleMeleeAttackEnd via Interface."));
 	this->bIsAttackingMelee = false;
 	this->MeleeAttackIndex = 0;
 }

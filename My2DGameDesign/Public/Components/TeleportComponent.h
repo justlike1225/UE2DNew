@@ -9,7 +9,8 @@
 class UTeleportSettingsDA;
 class AEnemyCharacterBase;
 class IEnemyTeleportAnimListener; // 需要监听器接口
-template<class InterfaceType> class TScriptInterface; // 需要 TScriptInterface
+template <class InterfaceType>
+class TScriptInterface; // 需要 TScriptInterface
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class MY2DGAMEDESIGN_API UTeleportComponent : public UActorComponent
@@ -81,6 +82,6 @@ private:
 	/** 获取动画监听器接口 */
 	TScriptInterface<IEnemyTeleportAnimListener> GetAnimListener() const;
 
-    /** 内部辅助，用于安全传送 */
-    bool TrySetActorLocation(const FVector& NewLocation);
+	/** 内部辅助，用于安全传送 */
+	bool TrySetActorLocation(const FVector& NewLocation);
 };

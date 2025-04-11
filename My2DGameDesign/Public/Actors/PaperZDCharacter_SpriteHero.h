@@ -1,185 +1,124 @@
-// My2DGameDesign/Public/PaperZDCharacter_SpriteHero.h
 #pragma once
-
 #include "CoreMinimal.h"
 #include "GenericTeamAgentInterface.h"
-#include "InputActionValue.h" // 包含输入值结构体
-#include "PaperZDCharacter.h" // 包含基类
+#include "InputActionValue.h"
+#include "PaperZDCharacter.h"
 #include "Interfaces/ActionInterruptSource.h"
 #include "Interfaces/AnimationListenerProvider/HeroAnimationStateProvider.h"
 #include "Interfaces/FacingDirectionProvider.h"
-#include "UObject/ScriptInterface.h" // 包含 TScriptInterface
+#include "UObject/ScriptInterface.h"
 #include "PaperZDCharacter_SpriteHero.generated.h"
 
-// --- 前向声明 ---
 class UPaperZDAnimInstance;
 class UHeroCombatComponent;
 class UDashComponent;
 class UAfterimageComponent;
 class UCameraComponent;
 class UBoxComponent;
-class UCapsuleComponent; // 需要包含它，因为仍然有定义
+class UCapsuleComponent;
 class UInputMappingContext;
 class UInputAction;
 class UPaperFlipbookComponent;
-class ICharacterAnimationStateListener; // 前向声明动画状态监听器接口
+class ICharacterAnimationStateListener;
 
-// 声明一个新的多播委托，没有参数
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnActionInterruptSignature);
 
-/**
- * 玩家控制的2D英雄角色类，基于PaperZDCharacter。
- * 集成了移动、动画以及通过组件实现的核心能力（冲刺、战斗、残影）。
- */
 UCLASS()
-class MY2DGAMEDESIGN_API APaperZDCharacter_SpriteHero : public APaperZDCharacter,public IFacingDirectionProvider, public IActionInterruptSource,   // <-- 新增
-                                                         public IHeroAnimationStateProvider  , public IGenericTeamAgentInterface
+class MY2DGAMEDESIGN_API APaperZDCharacter_SpriteHero : public APaperZDCharacter, public IFacingDirectionProvider,
+                                                        public IActionInterruptSource,
+                                                        public IHeroAnimationStateProvider,
+                                                        public IGenericTeamAgentInterface
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-  
-    // 构造函数
-    APaperZDCharacter_SpriteHero();
-    // --- Team Interface ---
-    /** 设置玩家队伍 ID */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Team")
-    FGenericTeamId TeamId = FGenericTeamId(0); // 默认玩家队伍为 0
+	APaperZDCharacter_SpriteHero();
 
-    /** 实现获取队伍 ID 的接口函数 */
-    virtual FGenericTeamId GetGenericTeamId() const override { return TeamId; }
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Team")
+	FGenericTeamId TeamId = FGenericTeamId(0);
 
-    /** 实现获取对其他队伍态度的接口函数 */
-    virtual ETeamAttitude::Type GetTeamAttitudeTowards(const AActor& Other) const override;
-    // --- End Team Interface ---
-    // --- IFacingDirectionProvider 接口实现 ---
-    // BlueprintNativeEvent 需要一个 _Implementation 函数在 C++ 中实现
-    virtual FVector GetFacingDirection_Implementation() const override;
-    /** 当一个高优先级动作（如跳跃、冲刺）将要开始，可能会打断其他动作时广播 */
-    UPROPERTY(BlueprintAssignable, Category = "Character|Events")
-    FOnActionInterruptSignature OnActionWillInterrupt;
-    // --- 组件 Getters ---
-    UFUNCTION(BlueprintPure, Category = "Components")
-    UDashComponent* GetDashComponent() const { return DashComponent; }
+	virtual FGenericTeamId GetGenericTeamId() const override { return TeamId; }
 
-    UFUNCTION(BlueprintPure, Category = "Components")
-    UAfterimageComponent* GetAfterimageComponent() const { return AfterimageComponent; }
+	virtual ETeamAttitude::Type GetTeamAttitudeTowards(const AActor& Other) const override;
 
-    UFUNCTION(BlueprintPure, Category = "Components")
-    UHeroCombatComponent* GetHeroCombatComponent() const { return CombatComponent; }
+	virtual FVector GetFacingDirection_Implementation() const override;
 
-    
-    // IActionInterruptSource
-    virtual void BroadcastActionInterrupt_Implementation() override; // 注意是 _Implementation
+	UPROPERTY(BlueprintAssignable, Category = "Character|Events")
+	FOnActionInterruptSignature OnActionWillInterrupt;
 
-    // IAnimationStateProvider
-    virtual TScriptInterface<ICharacterAnimationStateListener> GetAnimStateListener_Implementation() const override; // 注意是 _Implementation
+	UFUNCTION(BlueprintPure, Category = "Components")
+	UDashComponent* GetDashComponent() const { return DashComponent; }
 
+	UFUNCTION(BlueprintPure, Category = "Components")
+	UAfterimageComponent* GetAfterimageComponent() const { return AfterimageComponent; }
 
-    // --- 状态查询 ---
-    /** 判断角色是否正在根据输入尝试行走 */
-    UFUNCTION(BlueprintPure, Category = "Movement")
-    bool IsWalking() const { return bIsWalking; }
+	UFUNCTION(BlueprintPure, Category = "Components")
+	UHeroCombatComponent* GetHeroCombatComponent() const { return CombatComponent; }
 
-    /** 判断角色是否正在根据输入尝试奔跑 */
-    UFUNCTION(BlueprintPure, Category = "Movement")
-    bool IsRunning() const { return bIsRunning; }
+	virtual void BroadcastActionInterrupt_Implementation() override;
 
-    
+	virtual TScriptInterface<ICharacterAnimationStateListener> GetAnimStateListener_Implementation() const override;
 
+	UFUNCTION(BlueprintPure, Category = "Movement")
+	bool IsWalking() const { return bIsWalking; }
+
+	UFUNCTION(BlueprintPure, Category = "Movement")
+	bool IsRunning() const { return bIsRunning; }
 
 protected:
-    // --- 组件 ---
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-    TObjectPtr<UAfterimageComponent> AfterimageComponent;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UAfterimageComponent> AfterimageComponent;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-    TObjectPtr<UDashComponent> DashComponent;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UDashComponent> DashComponent;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-    TObjectPtr<UHeroCombatComponent> CombatComponent;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UHeroCombatComponent> CombatComponent;
 
-   
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UCameraComponent> Camera;
 
-    // --- 摄像机 ---
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
-    TObjectPtr<UCameraComponent> Camera;
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputMappingContext> PlayerMappingContext;
 
-    // --- 输入配置 ---
-    /** 主要的玩家输入映射上下文 */
-    UPROPERTY(EditDefaultsOnly, Category = "Input")
-    TObjectPtr<UInputMappingContext> PlayerMappingContext;
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> JumpAction;
 
-    /** 跳跃输入动作 */
-    UPROPERTY(EditDefaultsOnly, Category = "Input")
-    TObjectPtr<UInputAction> JumpAction;
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> MoveAction;
 
-    /** 移动输入动作 (左右) */
-    UPROPERTY(EditDefaultsOnly, Category = "Input")
-    TObjectPtr<UInputAction> MoveAction;
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> RunAction;
 
-    /** 奔跑输入动作 (通常是修改键) */
-    UPROPERTY(EditDefaultsOnly, Category = "Input")
-    TObjectPtr<UInputAction> RunAction;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0"))
+	float WalkSpeed = 100.f;
 
-    // --- 移动参数 ---
-    /** 行走时的最大速度 */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0"))
-    float WalkSpeed = 100.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0"))
+	float RunSpeed = 300.f;
 
-    /** 奔跑时的最大速度 */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0"))
-    float RunSpeed = 300.f;
+	bool bIsCanJump = false;
+	bool bIsWalking = false;
+	bool bIsRunning = false;
 
-    // --- 内部状态变量 ---
-    /** 角色是否可以执行跳跃 (通常在地面时为 true) */
-    bool bIsCanJump = false;
-    /** 角色是否按下了移动键 */
-    bool bIsWalking = false;
-    /** 角色是否按下了奔跑键 (且在移动) */
-    bool bIsRunning = false;
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Animation", meta=(AllowPrivateAccess = "true"))
+	TScriptInterface<ICharacterAnimationStateListener> AnimationStateListener;
 
-    // --- 新增：缓存实现了监听器接口的动画实例 ---
-    /** 缓存实现了 ICharacterAnimationStateListener 接口的动画实例 */
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Animation", meta=(AllowPrivateAccess = "true"))
-    TScriptInterface<ICharacterAnimationStateListener> AnimationStateListener;
+	virtual void BeginPlay() override;
+	virtual void NotifyControllerChanged() override;
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void Landed(const FHitResult& Hit) override;
+	virtual void OnWalkingOffLedge_Implementation(const FVector& PreviousFloorImpactNormal,
+	                                              const FVector& PreviousFloorContactNormal,
+	                                              const FVector& PreviousLocation, float TimeDelta) override;
 
+	void OnJumpStarted(const FInputActionValue& Value);
+	void OnJumpCompleted(const FInputActionValue& Value);
+	void OnRunTriggered(const FInputActionValue& Value);
+	void OnRunCompleted(const FInputActionValue& Value);
+	void OnMoveTriggered(const FInputActionValue& Value);
+	void OnMoveCompleted(const FInputActionValue& Value);
 
-    // --- 生命周期函数与重写函数 ---
-    virtual void BeginPlay() override;
-    virtual void NotifyControllerChanged() override; // 处理控制器附加，添加输入映射
-    virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override; // 设置输入绑定
-    virtual void Landed(const FHitResult& Hit) override; // 角色落地时调用
-    virtual void OnWalkingOffLedge_Implementation(const FVector& PreviousFloorImpactNormal,
-                                                  const FVector& PreviousFloorContactNormal,
-                                                  const FVector& PreviousLocation, float TimeDelta) override; // 角色从边缘掉落时调用
-    
-
-    // --- 输入处理函数 (现在需要调用接口推送状态) ---
-    /** 处理跳跃输入开始 */
-    void OnJumpStarted(const FInputActionValue& Value);
-    /** 处理跳跃输入结束 */
-    void OnJumpCompleted(const FInputActionValue& Value);
-    /** 处理奔跑输入触发 (按住) */
-    void OnRunTriggered(const FInputActionValue& Value);
-    /** 处理奔跑输入结束 (松开) */
-    void OnRunCompleted(const FInputActionValue& Value);
-    /** 处理移动输入触发 (按住) */
-    void OnMoveTriggered(const FInputActionValue& Value);
-    /** 处理移动输入结束 (松开) */
-    void OnMoveCompleted(const FInputActionValue& Value);
-
-
- 
-
-    // --- 初始化辅助函数 ---
-    /** 初始化移动相关的参数 */
-    void InitializeMovementParameters();
-   
-    /** 创建并设置摄像机组件 */
-    void SetupCamera();
-   
-    /** 根据输入方向设置角色的 Sprite 朝向 */
-    void SetDirection(float Direction)  const;
-
+	void InitializeMovementParameters();
+	void SetupCamera();
+	void SetDirection(float Direction) const;
 };

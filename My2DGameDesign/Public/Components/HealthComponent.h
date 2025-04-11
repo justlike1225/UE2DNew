@@ -85,28 +85,31 @@ protected:
 	// 这些变量存储组件的当前状态。
 
 	/** 当前生命值 */
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Health | Status", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Health | Status",
+		meta = (AllowPrivateAccess = "true"))
 	// VisibleInstanceOnly: 只能在关卡中选中实例时看到这个值（用于调试），不能编辑。
 	// BlueprintReadOnly: 蓝图只能读取，不能写入。
 	// AllowPrivateAccess: 允许在类定义内部直接访问（即使它是 private 或 protected）。
 	float CurrentHealth = 0.0f;
 
 	/** 最大生命值 (运行时使用的最终值，通常由 DefaultMaxHealth 初始化) */
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Health | Status", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Health | Status",
+		meta = (AllowPrivateAccess = "true"))
 	float MaxHealth = 0.0f;
 
 	/** 标记是否已经死亡，防止重复触发死亡逻辑 */
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Health | Status", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Health | Status",
+		meta = (AllowPrivateAccess = "true"))
 	bool bIsDead = false;
 
 private:
 	// private 访问说明符意味着这些成员只能被这个类自身访问。
 
-    /** 内部辅助函数，用于处理死亡逻辑的细节 */
-    void HandleDeath(AActor* Killer);
+	/** 内部辅助函数，用于处理死亡逻辑的细节 */
+	void HandleDeath(AActor* Killer);
 
-    // 如果你想使用引擎内置的伤害系统 (通过 Actor 的 TakeDamage 函数触发)，
-    // 你可以在 BeginPlay 中绑定到 Owner 的 OnTakeAnyDamage 委托，并需要下面这个处理函数。
-    // UFUNCTION()
-    // void HandleOwnerTakeAnyDamage(AActor* DamagedActor, float Damage, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser);
+	// 如果你想使用引擎内置的伤害系统 (通过 Actor 的 TakeDamage 函数触发)，
+	// 你可以在 BeginPlay 中绑定到 Owner 的 OnTakeAnyDamage 委托，并需要下面这个处理函数。
+	// UFUNCTION()
+	// void HandleOwnerTakeAnyDamage(AActor* DamagedActor, float Damage, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser);
 };

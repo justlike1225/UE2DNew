@@ -1,5 +1,4 @@
-﻿// My2DGameDesign/Public/AnimationNotify/Enemies/FinishTeleportNotify.h
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Notifies/PaperZDAnimNotify.h"

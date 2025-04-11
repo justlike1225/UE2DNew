@@ -52,19 +52,19 @@ public:
 
 	// --- AI 与 冷却 (Cooldown) ---
 
-    /**
-     * @brief AI 使用此攻击的最小距离。
-     * 如果目标距离小于这个值，AI 可能倾向于使用近战或其他行为。
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ranged Attack | AI", meta = (ClampMin = "0.0"))
-    float AttackRangeMin = 300.0f; // 默认最小距离
+	/**
+	 * @brief AI 使用此攻击的最小距离。
+	 * 如果目标距离小于这个值，AI 可能倾向于使用近战或其他行为。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ranged Attack | AI", meta = (ClampMin = "0.0"))
+	float AttackRangeMin = 300.0f; // 默认最小距离
 
-    /**
-     * @brief AI 使用此攻击的最大距离。
-     * 目标超过这个距离，AI 就不会尝试使用此远程攻击。
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ranged Attack | AI", meta = (ClampMin = "0.0"))
-    float AttackRangeMax = 1200.0f; // 默认最大距离
+	/**
+	 * @brief AI 使用此攻击的最大距离。
+	 * 目标超过这个距离，AI 就不会尝试使用此远程攻击。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ranged Attack | AI", meta = (ClampMin = "0.0"))
+	float AttackRangeMax = 1200.0f; // 默认最大距离
 
 	/** @brief 成功执行一次远程攻击后的冷却时间（秒）。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ranged Attack | AI", meta = (ClampMin = "0.0"))
@@ -72,7 +72,7 @@ public:
 
 	// --- (可选) 效果与表现 ---
 
-    /** @brief 发射投掷物时在发射点播放的粒子效果 (枪口火焰/魔法效果等) (可选)。 */
+	/** @brief 发射投掷物时在发射点播放的粒子效果 (枪口火焰/魔法效果等) (可选)。 */
 	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ranged Attack | Effects")
 	// TObjectPtr<class UParticleSystem> MuzzleEffect;
 
@@ -80,9 +80,9 @@ public:
 	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ranged Attack | Effects")
 	// TObjectPtr<class USoundCue> FireSound;
 
-    // --- 你可以根据需要添加更多配置项 ---
-    // 例如：
-    // int32 BurstCount = 1; // 一次攻击发射多少个投掷物（连发）
-    // float BurstInterval = 0.1f; // 连发间隔
-    // float SpreadAngle = 0.0f; // 散射角度
+	// --- 你可以根据需要添加更多配置项 ---
+	// 例如：
+	// int32 BurstCount = 1; // 一次攻击发射多少个投掷物（连发）
+	// float BurstInterval = 0.1f; // 连发间隔
+	// float SpreadAngle = 0.0f; // 散射角度
 };

@@ -15,7 +15,7 @@ class MY2DGAMEDESIGN_API UHeroFXSettingsDA : public UDataAsset
 
 public:
 	// --- 残影设置 (Afterimage) ---
-	
+
 
 	/** @brief 残影效果使用的基础材质。*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Afterimage Effect")
@@ -33,7 +33,8 @@ public:
 	FName AfterImageOpacityParamName = FName("Opacity"); // 提供默认值
 
 	/** @brief 残影生成时的初始不透明度。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Afterimage Effect", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Afterimage Effect",
+		meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float AfterImageInitialOpacity = 0.5f;
 
 	/** @brief 残影淡出效果的更新频率（秒）。 值越小越平滑，但性能开销略高。 */

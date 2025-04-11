@@ -1,5 +1,4 @@
 #pragma once
-
 #include "CoreMinimal.h"
 #include "Notifies/PaperZDAnimNotify.h"
 #include "SpawnSwordBeamNotify.generated.h"

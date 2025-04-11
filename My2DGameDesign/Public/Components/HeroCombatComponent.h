@@ -18,7 +18,8 @@ struct FHitResult;
 struct FInputActionValue;
 class UEnhancedInputComponent;
 class ICharacterAnimationStateListener;
-template<class InterfaceType> class TScriptInterface;
+template <class InterfaceType>
+class TScriptInterface;
 class UBoxComponent; // <-- 添加 BoxComponent 前向声明
 class UCapsuleComponent; // <-- 添加 CapsuleComponent 前向声明
 
@@ -46,16 +47,27 @@ public:
 	virtual void BindInputActions_Implementation(UEnhancedInputComponent* EnhancedInputComponent) override;
 
 	// --- Getters ---
-	UFUNCTION(BlueprintPure, Category = "Combat State") int32 GetComboCount() const { return ComboCount; }
-	UFUNCTION(BlueprintPure, Category = "Combat State") bool CanCombo() const { return bCanCombo; }
-	UFUNCTION(BlueprintPure, Category = "Combat State") bool IsPerformingAirAttack() const { return bIsPerformingAirAttack; }
-	UFUNCTION(BlueprintPure, Category = "Combat State") bool CanAirAttack() const { return bCanAirAttack && !bIsPerformingAirAttack; }
+	UFUNCTION(BlueprintPure, Category = "Combat State")
+	int32 GetComboCount() const { return ComboCount; }
+
+	UFUNCTION(BlueprintPure, Category = "Combat State")
+	bool CanCombo() const { return bCanCombo; }
+
+	UFUNCTION(BlueprintPure, Category = "Combat State")
+	bool IsPerformingAirAttack() const { return bIsPerformingAirAttack; }
+
+	UFUNCTION(BlueprintPure, Category = "Combat State")
+	bool CanAirAttack() const { return bCanAirAttack && !bIsPerformingAirAttack; }
 
 	// --- AnimNotify 调用的函数 ---
-	UFUNCTION(BlueprintCallable, Category = "Combat|AnimNotify") void EnableComboInput();
-	UFUNCTION(BlueprintCallable, Category = "Combat|AnimNotify") void CloseComboWindowAndSetupResetTimer();
-	UFUNCTION(BlueprintCallable, Category = "Combat|AnimNotify") void HandleAnimNotify_SpawnSwordBeam();
-	UFUNCTION(BlueprintCallable, Category = "Combat|AnimNotify") void HandleAnimNotify_AirAttackEnd();
+	UFUNCTION(BlueprintCallable, Category = "Combat|AnimNotify")
+	void EnableComboInput();
+	UFUNCTION(BlueprintCallable, Category = "Combat|AnimNotify")
+	void CloseComboWindowAndSetupResetTimer();
+	UFUNCTION(BlueprintCallable, Category = "Combat|AnimNotify")
+	void HandleAnimNotify_SpawnSwordBeam();
+	UFUNCTION(BlueprintCallable, Category = "Combat|AnimNotify")
+	void HandleAnimNotify_AirAttackEnd();
 	/** @brief 由 AnimNotify 调用，根据标识符激活指定的攻击碰撞体 */
 	UFUNCTION(BlueprintCallable, Category = "Combat|AnimNotify")
 	void ActivateAttackCollision(FName ShapeIdentifier, float Duration);
@@ -121,13 +133,17 @@ protected:
 	void SpawnSwordBeam();
 
 	// --- 状态重置与冷却 (保持不变) ---
-	UFUNCTION() void ResetComboState();
-	UFUNCTION() void OnAttackCooldownFinished();
-	UFUNCTION() void OnAirAttackCooldownFinished();
+	UFUNCTION()
+	void ResetComboState();
+	UFUNCTION()
+	void OnAttackCooldownFinished();
+	UFUNCTION()
+	void OnAirAttackCooldownFinished();
 
 	// --- 碰撞处理 ---
 	UFUNCTION() // 绑定到所有攻击碰撞体的 OnComponentBeginOverlap
-	void OnAttackHit(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	void OnAttackHit(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+	                 int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 	// --- 中断处理 ---
 	UFUNCTION()
@@ -140,7 +156,8 @@ private:
 	/** 启动地面攻击冷却 */
 	void StartAttackCooldown();
 	/** 配置攻击碰撞体的通用属性 */
-	void ConfigureAttackCollisionComponent(UPrimitiveComponent* CollisionComp, FName ProfileName = TEXT("OverlapAllDynamic")); // 可以接受配置名称
+	void ConfigureAttackCollisionComponent(UPrimitiveComponent* CollisionComp,
+	                                       FName ProfileName = TEXT("OverlapAllDynamic")); // 可以接受配置名称
 	/** 在指定时间后关闭当前激活的攻击碰撞体 */
 	UFUNCTION()
 	void DeactivateCurrentAttackCollision();
