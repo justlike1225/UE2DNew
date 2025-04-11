@@ -100,7 +100,32 @@ void APaperZDCharacter_SpriteHero::SetupCamera()
 	Camera->SetProjectionMode(ECameraProjectionMode::Orthographic); // 设置为正交投影
 	Camera->OrthoWidth = 600.0f; // 设置正交视图宽度
 }
+// --- 实现 Team Interface ---
+ETeamAttitude::Type APaperZDCharacter_SpriteHero::GetTeamAttitudeTowards(const AActor& Other) const
+{
+	// 检查对方是否也实现了 Team 接口
+	const IGenericTeamAgentInterface* OtherTeamAgent = Cast<const IGenericTeamAgentInterface>(&Other);
+	if (OtherTeamAgent)
+	{
+		FGenericTeamId OtherTeamId = OtherTeamAgent->GetGenericTeamId();
 
+		// 如果对方是自己队伍 (比如其他玩家，虽然现在没有)，则为友方
+		if (OtherTeamId == TeamId)
+		{
+			return ETeamAttitude::Friendly;
+		}
+		// 否则，假设所有其他队伍 (比如敌人队伍 1) 都是敌对的
+		else
+		{
+			return ETeamAttitude::Hostile;
+		}
+	}
+	// 也可以添加更复杂的逻辑，比如基于 Controller 类型判断
+	// else if (Cast<AController>(Other.GetInstigatorController())) ...
+
+	// 默认视为中立
+	return ETeamAttitude::Neutral;
+}
 // BeginPlay: 初始化组件、状态和缓存监听器
 void APaperZDCharacter_SpriteHero::BeginPlay()
 {
@@ -111,8 +136,6 @@ void APaperZDCharacter_SpriteHero::BeginPlay()
 	// --- 绑定冲刺组件的委托 ---
 	if (DashComponent)
 	{
-		DashComponent->OnDashStarted.AddDynamic(this, &APaperZDCharacter_SpriteHero::HandleDashStarted);
-		DashComponent->OnDashEnded.AddDynamic(this, &APaperZDCharacter_SpriteHero::HandleDashEnded);
 	}
 	else
 	{
@@ -408,17 +431,4 @@ void APaperZDCharacter_SpriteHero::SetDirection(float Direction) const // 可以
 }
 
 
-// HandleDashStarted: 响应冲刺组件的 OnDashStarted 委托 (只做日志或特殊处理)
-void APaperZDCharacter_SpriteHero::HandleDashStarted()
-{
-	UE_LOG(LogTemp, Log, TEXT("%s: Received Dash Started signal from DashComponent."), *GetName());
-	// 动画状态由推送的 OnDashStateChanged 驱动
-}
-
-// HandleDashEnded: 响应冲刺组件的 OnDashEnded 委托 (只做日志或特殊处理)
-void APaperZDCharacter_SpriteHero::HandleDashEnded()
-{
-	UE_LOG(LogTemp, Log, TEXT("%s: Received Dash Ended signal from DashComponent."), *GetName());
-    // 动画状态由推送的 OnDashStateChanged 驱动
-}
 

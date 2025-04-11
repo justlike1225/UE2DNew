@@ -10,7 +10,6 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "AniInstance/EnemyAnimInstanceBase.h"
 #include "Interfaces/AnimationListener//EnemyMovementAnimListener.h"
 #include "Interfaces/AnimationListener//EnemyStateAnimListener.h"
 #include "Interfaces/AnimationListener//EnemyMeleeAttackAnimListener.h"
@@ -125,9 +124,6 @@ float AEnemyCharacterBase::ApplyDamage_Implementation(float DamageAmount, AActor
     return ActualDamage;
 }
 
-
-// --- 新: 实现 IEnemySpecificAnimListenerProvider 的 Getter 函数 ---
-// 返回尝试转换基础动画实例到目标接口的结果
 TScriptInterface<IEnemyMovementAnimListener> AEnemyCharacterBase::GetMovementAnimListener_Implementation() const {
     return TScriptInterface<IEnemyMovementAnimListener>(CachedAnimInstancePtr.Get());
 }
@@ -137,7 +133,7 @@ TScriptInterface<IEnemyStateAnimListener> AEnemyCharacterBase::GetStateAnimListe
 }
 
 TScriptInterface<IEnemyMeleeAttackAnimListener> AEnemyCharacterBase::GetMeleeAttackAnimListener_Implementation() const {
-    // 基类默认实现：尝试转换。如果子类的 AnimInstance 实现了接口，这里就能返回有效的。
+   
     return TScriptInterface<IEnemyMeleeAttackAnimListener>(CachedAnimInstancePtr.Get());
 }
 
@@ -194,17 +190,49 @@ void AEnemyCharacterBase::HandleDeath(AActor* Killer) {
     SetLifeSpan(5.0f); // 保留设置销毁时间
 }
 
-// SetFacingDirection (保留)
-void AEnemyCharacterBase::SetFacingDirection(bool bFaceRight) {
-    if (bIsFacingRight == bFaceRight) return;
-    bIsFacingRight = bFaceRight;
-    if (UPaperFlipbookComponent* flipbookcmp = GetSprite()) {
-        FVector CurrentScale = flipbookcmp->GetRelativeScale3D();
-        CurrentScale.X = bIsFacingRight ? FMath::Abs(CurrentScale.X) : -FMath::Abs(CurrentScale.X);
-        flipbookcmp->SetRelativeScale3D(CurrentScale);
+void AEnemyCharacterBase::SetFacingDirection(bool bWantsToFaceRight)
+{
+    // 如果期望的朝向和当前状态一致，则无需改变
+    if (bIsFacingRight == bWantsToFaceRight)
+    {
+        return;
+    }
+
+    // 更新逻辑朝向状态
+    bIsFacingRight = bWantsToFaceRight;
+
+    UPaperFlipbookComponent* SpriteComponent = GetSprite();
+    if (SpriteComponent)
+    {
+        FVector CurrentScale = SpriteComponent->GetRelativeScale3D();
+        // 获取当前 Scale X 的绝对值，如果为0则默认为1，防止完全消失
+        float AbsScaleX = FMath::Abs(CurrentScale.X);
+        if (FMath::IsNearlyZero(AbsScaleX))
+        {
+            AbsScaleX = 1.0f;
+        }
+
+        // 决定目标 Scale X 的符号
+        float TargetSign;
+
+       
+        
+        bool bDirectionMatchesAsset = (bWantsToFaceRight == bAssetFacesRightByDefault);
+        TargetSign = bDirectionMatchesAsset ? 1.0f : -1.0f;
+
+        // 计算并设置新的 Scale
+        float NewScaleX = AbsScaleX * TargetSign;
+        SpriteComponent->SetRelativeScale3D(FVector(NewScaleX, CurrentScale.Y, CurrentScale.Z));
+
+         // 调试日志 (可选)
+        UE_LOG(LogTemp, Verbose, TEXT("SetFacingDirection on %s: WantsRight=%s, AssetRight=%s -> TargetSign=%.1f, NewScaleX=%.1f"),
+               *GetName(),
+               bWantsToFaceRight ? TEXT("true") : TEXT("false"),
+               bAssetFacesRightByDefault ? TEXT("true") : TEXT("false"),
+               TargetSign,
+               NewScaleX);
     }
 }
-
 
 // CacheBaseAnimInstance (修改: 缓存基础实例)
 void AEnemyCharacterBase::CacheBaseAnimInstance() { // <-- 重命名并修改逻辑
@@ -221,10 +249,3 @@ void AEnemyCharacterBase::CacheBaseAnimInstance() { // <-- 重命名并修改逻
 }
 
 
-// GetEnemyAnimInstance (保留，但其用处可能减少)
-UEnemyAnimInstanceBase* AEnemyCharacterBase::GetEnemyAnimInstance() const {
-     // 注意：这里仍然尝试转换为 UEnemyAnimInstanceBase。
-     // 如果你创建了很多子类 AnimInstance，这个函数可能需要调整或弃用，
-     // 除非 UEnemyAnimInstanceBase 仍然包含你需要直接访问的公共函数或属性。
-    return Cast<UEnemyAnimInstanceBase>(CachedAnimInstancePtr.Get());
-}

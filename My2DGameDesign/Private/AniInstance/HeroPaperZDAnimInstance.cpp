@@ -73,25 +73,7 @@ void UHeroPaperZDAnimInstance::OnTick_Implementation(float DeltaTime)
 			VerticalSpeed = 0.0f;
 		}
 	}
-
-	/*显示所有状态变量bIsMovingOnGround = false;
-	bIsFalling = true; // 假设初始在空中
-	bIsWalking = false;
-	bIsRunning = false;
-	bIsAirAttacking = false; // 初始化
-	bIsDashing = false;
-	ComboCount = 0;
-	Velocity = FVector::ZeroVector;
-	GroundSpeed = 0.0f;
-	VerticalSpeed = 0.0f;*/
-	GEngine ->AddOnScreenDebugMessage(-1,-1,FColor::Red,
-		FString::Printf(TEXT("bIsMovingOnGround: %s, bIsFalling: %s, bIsWalking: %s, bIsRunning: %s, bIsDashing: %s, ComboCount: %d"),
-			(bIsMovingOnGround ? TEXT("true") : TEXT("false")),
-			(bIsFalling ? TEXT("true") : TEXT("false")),
-			(bIsWalking ? TEXT("true") : TEXT("false")),
-			(bIsRunning ? TEXT("true") : TEXT("false")),
-			(bIsDashing ? TEXT("true") : TEXT("false")),
-			ComboCount));
+	
 
 	
 	

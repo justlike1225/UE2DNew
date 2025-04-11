@@ -1,6 +1,6 @@
 ﻿// My2DGameDesign/Private/AI/EnemyAIControllerBase.cpp
 
-#include "AI/EnemyAIControllerBase.h"    // 引入对应的头文件
+#include "AI/AIC//EnemyAIControllerBase.h"    // 引入对应的头文件
 #include "BehaviorTree/BehaviorTreeComponent.h" // 行为树组件
 #include "BehaviorTree/BlackboardComponent.h" // 黑板组件
 #include "Perception/AIPerceptionComponent.h" // 感知组件
@@ -33,9 +33,9 @@ AEnemyAIControllerBase::AEnemyAIControllerBase(const FObjectInitializer& ObjectI
 	if (SightConfig)
 	{
         // **重要**: 这些数值需要根据你的游戏进行调整!**
-		SightConfig->SightRadius = 1200.0f; // 能看到多远
-		SightConfig->LoseSightRadius = 1600.0f; // 丢失视觉需要多远 (通常比 SightRadius 稍大，防止目标在边缘闪烁)
-		SightConfig->PeripheralVisionAngleDegrees = 75.0f; // 视野有多宽 (角度)
+		SightConfig->SightRadius = 300.0f; // 能看到多远
+		SightConfig->LoseSightRadius = 400.0f; // 丢失视觉需要多远 (通常比 SightRadius 稍大，防止目标在边缘闪烁)
+		SightConfig->PeripheralVisionAngleDegrees = 180.0f; // 视野有多宽 (角度)
 		SightConfig->SetMaxAge(5.0f); // 感知信息保留多久 (秒)，如果5秒没再看到，信息就过期了
 
         // 设置能探测到的目标类型 (基于阵营 Team Attitude)
@@ -194,4 +194,29 @@ void AEnemyAIControllerBase::SetTargetActorOnBlackboard(AActor* TargetActor)
     {
         UE_LOG(LogTemp, Warning, TEXT("EnemyAIControllerBase::SetTargetActorOnBlackboard - BlackboardComponent is invalid!"));
     }
+}
+ETeamAttitude::Type AEnemyAIControllerBase::GetTeamAttitudeTowards(const AActor& Other) const
+{
+	// 检查对方是否也实现了 Team 接口
+	const IGenericTeamAgentInterface* OtherTeamAgent = Cast<const IGenericTeamAgentInterface>(&Other);
+	if (OtherTeamAgent)
+	{
+		// 获取对方的 TeamId
+		FGenericTeamId OtherTeamId = OtherTeamAgent->GetGenericTeamId();
+
+		// 如果对方和自己是同一个队伍 (都是敌人)，则为友方
+		if (OtherTeamId == TeamId)
+		{
+			return ETeamAttitude::Friendly;
+		}
+		// 否则，假设所有其他队伍都是敌对的 (比如玩家队伍是 0)
+		else
+		{
+			return ETeamAttitude::Hostile;
+		}
+	}
+
+	// 如果对方没有实现 Team 接口，或者不是 AI 控制的 Pawn，可以视为中立或敌对
+	// 这里简单处理为中立，你可以根据需要调整
+	return ETeamAttitude::Neutral;
 }

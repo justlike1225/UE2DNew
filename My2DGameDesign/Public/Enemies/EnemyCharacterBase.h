@@ -38,10 +38,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "Components | Health")
     UHealthComponent* GetHealthComponent() const { return HealthComponent; }
 
-    /** 获取特定敌人动画实例基类 (如果需要，可以保留) */
-    UFUNCTION(BlueprintPure, Category="Animation")
-    UEnemyAnimInstanceBase* GetEnemyAnimInstance() const; // 注意：这个可能需要调整，取决于你是否还使用EnemyAnimInstanceBase
-
+  
     // --- 接口实现函数声明 ---
 
     // --- IDamageable 接口实现 (保留) ---
@@ -59,15 +56,18 @@ public:
     virtual FVector GetFacingDirection_Implementation() const override;
 
 
-    /** 指定这个敌人使用的行为树资产 (保留) */
+ 
     UPROPERTY(EditDefaultsOnly, Category="AI | Configuration")
     TObjectPtr<UBehaviorTree> BehaviorTree;
-
+    /** 设置朝向 (保留) */
+    virtual void SetFacingDirection(bool bFaceRight);
 protected:
     // 生命周期函数 (保留)
     virtual void BeginPlay() override;
     virtual void PossessedBy(AController* NewController) override;
-
+    /** 这个敌人的原始美术资源（Flipbook/Sprite）是否默认朝向右边？ */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character | Visuals", meta=(AllowPrivateAccess="true"))
+    bool bAssetFacesRightByDefault = true; // 默认设置为 true，以兼容你现有的假设为朝右的资源
     // 核心组件指针 (保留)
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UHealthComponent> HealthComponent;
@@ -77,21 +77,18 @@ protected:
     /** 用于缓存基础动画实例指针 (修改：缓存基础类型) */
     UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category="Animation", meta=(AllowPrivateAccess = "true"))
     TWeakObjectPtr<UPaperZDAnimInstance> CachedAnimInstancePtr; // <-- 修改为缓存基础指针
-
-    // --- 移除旧的 AnimationStateListener 成员变量 ---
-    // TScriptInterface<IEnemyAnimationStateListener> AnimationStateListener; // <-- 移除
-
+    
+  
 
     /** 处理死亡 (保留) */
     UFUNCTION()
     virtual void HandleDeath(AActor* Killer);
 
-    /** 设置朝向 (保留) */
-    virtual void SetFacingDirection(bool bFaceRight);
+  
 
     /** 存储当前朝向 (保留) */
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="State | Direction", meta=(AllowPrivateAccess="true"))
-    bool bIsFacingRight = true;
+    bool bIsFacingRight = bAssetFacesRightByDefault;
 
 private:
     /** 辅助函数，尝试查找并缓存基础动画实例指针 (重命名) */

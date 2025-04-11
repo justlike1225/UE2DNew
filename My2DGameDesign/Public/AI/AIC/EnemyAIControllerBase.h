@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "AIController.h" // 继承自引擎的 AIController
+
 #include "Perception/AIPerceptionTypes.h" // 需要用到 FAIStimulus 等感知类型
 #include "EnemyAIControllerBase.generated.h" // 生成的头文件
 
@@ -25,6 +26,17 @@ public:
 	// 构造函数
 	AEnemyAIControllerBase(const FObjectInitializer& ObjectInitializer);
 
+	// --- Team Interface ---
+	/** 设置队伍 ID */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI | Team")
+	FGenericTeamId TeamId = FGenericTeamId(1); // 默认敌人队伍为 1
+
+	/** 实现获取队伍 ID 的接口函数 */
+	virtual FGenericTeamId GetGenericTeamId() const override { return TeamId; }
+
+	/** 实现获取对其他队伍态度的接口函数 */
+	virtual ETeamAttitude::Type GetTeamAttitudeTowards(const AActor& Other) const override;
+	// --- End Team Interface ---
     /** 黑板键名常量：用于存储目标 Actor (通常是玩家) 的键名 */
     static const FName TargetActorKeyName;
     /** 黑板键名常量：用于存储是否能看到目标的布尔值的键名 */

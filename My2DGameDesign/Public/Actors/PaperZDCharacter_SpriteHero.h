@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GenericTeamAgentInterface.h"
 #include "InputActionValue.h" // 包含输入值结构体
 #include "PaperZDCharacter.h" // 包含基类
 #include "Interfaces/ActionInterruptSource.h"
@@ -32,7 +33,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnActionInterruptSignature);
  */
 UCLASS()
 class MY2DGAMEDESIGN_API APaperZDCharacter_SpriteHero : public APaperZDCharacter,public IFacingDirectionProvider, public IActionInterruptSource,   // <-- 新增
-                                                         public IHeroAnimationStateProvider  // <-- 新增
+                                                         public IHeroAnimationStateProvider  , public IGenericTeamAgentInterface
 {
     GENERATED_BODY()
 
@@ -40,7 +41,17 @@ public:
   
     // 构造函数
     APaperZDCharacter_SpriteHero();
+    // --- Team Interface ---
+    /** 设置玩家队伍 ID */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Team")
+    FGenericTeamId TeamId = FGenericTeamId(0); // 默认玩家队伍为 0
 
+    /** 实现获取队伍 ID 的接口函数 */
+    virtual FGenericTeamId GetGenericTeamId() const override { return TeamId; }
+
+    /** 实现获取对其他队伍态度的接口函数 */
+    virtual ETeamAttitude::Type GetTeamAttitudeTowards(const AActor& Other) const override;
+    // --- End Team Interface ---
     // --- IFacingDirectionProvider 接口实现 ---
     // BlueprintNativeEvent 需要一个 _Implementation 函数在 C++ 中实现
     virtual FVector GetFacingDirection_Implementation() const override;
@@ -159,14 +170,7 @@ protected:
     void OnMoveCompleted(const FInputActionValue& Value);
 
 
-    // --- 响应组件委托的函数 ---
-    /** 当 DashComponent 发出 OnDashStarted 信号时调用 */
-    UFUNCTION()
-    void HandleDashStarted();
-    /** 当 DashComponent 发出 OnDashEnded 信号时调用 */
-    UFUNCTION()
-    void HandleDashEnded();
-
+ 
 
     // --- 初始化辅助函数 ---
     /** 初始化移动相关的参数 */

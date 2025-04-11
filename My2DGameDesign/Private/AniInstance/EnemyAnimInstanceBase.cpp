@@ -48,8 +48,8 @@ void UEnemyAnimInstanceBase::OnTick_Implementation(float DeltaTime)
     {
         bIsFalling = OwnerMovementComponent->IsFalling();
         // Speed 和 bIsMoving 主要依赖接口更新，但如果需要实时物理速度，可以在这里补充
-        // Speed = OwnerMovementComponent->Velocity.Size2D();
-        // bIsMoving = Speed > KINDA_SMALL_NUMBER && !bIsFalling; // 简单判断
+         // Speed = OwnerMovementComponent->Velocity.Size2D();
+         // bIsMoving = Speed > KINDA_SMALL_NUMBER && !bIsFalling; // 简单判断
     }
     else if(OwnerEnemyCharacter.IsValid())
     {
