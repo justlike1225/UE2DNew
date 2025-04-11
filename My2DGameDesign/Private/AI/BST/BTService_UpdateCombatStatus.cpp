@@ -46,20 +46,7 @@ void UBTService_UpdateCombatStatus::TickNode(UBehaviorTreeComponent& OwnerComp, 
 	UHealthComponent* HealthComp = ControlledPawn->GetHealthComponent();
 	UEnemyMeleeAttackComponent* MeleeComp = ControlledPawn->GetMeleeAttackComponent();
 	UTeleportComponent* TeleportComp = ControlledPawn->GetTeleportComponent();
-	if (!HealthComp)
-	{
-	}
-	if (!MeleeComp)
-	{
-	}
-	if (!TeleportComp)
-	{
-	}
-
-
-	if (!TargetActorKey.IsSet())
-	{
-	}
+	
 
 	AActor* TargetActor = Cast<AActor>(BlackboardComp->GetValueAsObject(TargetActorKey.SelectedKeyName));
 
