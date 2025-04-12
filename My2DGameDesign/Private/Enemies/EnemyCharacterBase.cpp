@@ -129,37 +129,52 @@ void AEnemyCharacterBase::PossessedBy(AController* NewController)
 	
 	}
 }
-
 float AEnemyCharacterBase::ApplyDamage_Implementation(float DamageAmount, AActor* DamageCauser,
-                                                      AController* InstigatorController, const FHitResult& HitResult)
+													  AController* InstigatorController, const FHitResult& HitResult)
 {
 	if (!HealthComponent)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("AEnemyCharacterBase::ApplyDamage: HealthComponent is missing!"));
 		return 0.f;
 	}
 
+	// 让 HealthComponent 处理实际的伤害计算和死亡逻辑
 	float ActualDamage = HealthComponent->TakeDamage(DamageAmount, DamageCauser, InstigatorController);
 
+	// 如果造成了实际伤害，并且角色还未死亡，则尝试通知动画状态监听器播放受击动画
 	if (ActualDamage > 0.f && !HealthComponent->IsDead())
 	{
-		TScriptInterface<IEnemyStateAnimListener> StateListener = GetStateAnimListener();
-		if (StateListener)
+		// --- 开始修改 ---
+		// TScriptInterface<IEnemyStateAnimListener> StateListener = GetStateAnimListener(); // <--- 旧的调用方式
+
+		// 使用 Execute_ 版本调用接口函数，并在 'this' 对象上执行
+		TScriptInterface<IEnemyStateAnimListener> StateListener = IEnemySpecificAnimListenerProvider::Execute_GetStateAnimListener(this);
+		// --- 修改结束 ---
+
+		if (StateListener) // 确保获取到了有效的监听器
 		{
+			// 计算受击方向
 			FVector HitDirection = FVector::ZeroVector;
-			if (DamageCauser)
+			if (DamageCauser) // 如果有伤害来源 Actor
 			{
+				// 方向是从来源指向自身
 				HitDirection = (GetActorLocation() - DamageCauser->GetActorLocation()).GetSafeNormal();
 			}
-			else if (HitResult.IsValidBlockingHit())
+			else if (HitResult.IsValidBlockingHit()) // 如果没有来源 Actor，但有有效的命中结果
 			{
+				// 方向是命中法线的反方向
 				HitDirection = -HitResult.ImpactNormal;
 			}
+			// 假设受击总是应该中断当前动作（可以根据需要修改为配置项）
 			bool bShouldInterrupt = true;
 
+			// 正确地调用 StateListener 接口的 OnTakeHit 函数
 			StateListener->Execute_OnTakeHit(StateListener.GetObject(), ActualDamage, HitDirection, bShouldInterrupt);
 		}
 		else
 		{
+			// 如果获取不到 StateListener，可能需要记录日志
+			UE_LOG(LogTemp, Warning, TEXT("AEnemyCharacterBase::ApplyDamage: Could not get StateAnimListener for %s."), *GetNameSafe(this));
 		}
 	}
 	return ActualDamage;
@@ -197,30 +212,56 @@ FVector AEnemyCharacterBase::GetFacingDirection_Implementation() const
 
 void AEnemyCharacterBase::HandleDeath(AActor* Killer)
 {
+	// 停止 AI 逻辑
 	AController* MyController = GetController();
 	if (MyController)
 	{
-		MyController->StopMovement();
+		MyController->StopMovement(); // 停止当前移动指令
 		AAIController* AIController = Cast<AAIController>(MyController);
 		if (AIController && AIController->GetBrainComponent())
 		{
+			// 停止行为树
 			AIController->GetBrainComponent()->StopLogic("Character Died");
+			UE_LOG(LogTemp, Log, TEXT("%s: AI BrainComponent stopped."), *GetNameSafe(this));
 		}
 	}
-	SetActorEnableCollision(false);
-	if (GetCharacterMovement())
+
+	// 禁用碰撞和移动
+	SetActorEnableCollision(false); // 禁用 Actor 的主碰撞
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
 	{
-		GetCharacterMovement()->StopMovementImmediately();
-		GetCharacterMovement()->DisableMovement();
-		GetCharacterMovement()->SetComponentTickEnabled(false);
+		MoveComp->StopMovementImmediately(); // 立即停止移动
+		MoveComp->DisableMovement();         // 禁用移动模式
+		MoveComp->SetComponentTickEnabled(false); // 禁用移动组件 Tick
+		UE_LOG(LogTemp, Log, TEXT("%s: Collision and Movement disabled."), *GetNameSafe(this));
 	}
 
-	TScriptInterface<IEnemyStateAnimListener> StateListener = GetStateAnimListener();
-	if (StateListener)
+	// 通知动画状态机进入死亡状态
+	UE_LOG(LogTemp, Log, TEXT("%s: Attempting to notify AnimInstance of death."), *GetNameSafe(this));
+
+	// --- 开始修改 ---
+	// TScriptInterface<IEnemyStateAnimListener> StateListener = GetStateAnimListener(); // <--- 旧的调用方式
+
+	// 使用 Execute_ 版本调用接口函数，并在 'this' 对象上执行
+	TScriptInterface<IEnemyStateAnimListener> StateListener = IEnemySpecificAnimListenerProvider::Execute_GetStateAnimListener(this);
+	// --- 修改结束 ---
+
+	if (StateListener) // 检查是否成功获取监听器
 	{
+		// 正确地调用 StateListener 接口的 OnDeathState 函数
 		StateListener->Execute_OnDeathState(StateListener.GetObject(), Killer);
+		UE_LOG(LogTemp, Log, TEXT("%s: Notified StateAnimListener via Execute_OnDeathState."), *GetNameSafe(this));
 	}
-	SetLifeSpan(5.0f);
+	else
+	{
+		// 如果获取不到 StateListener，记录日志
+		UE_LOG(LogTemp, Warning, TEXT("AEnemyCharacterBase::HandleDeath: Could not get StateAnimListener for %s."), *GetNameSafe(this));
+		// 即使没有动画监听器，死亡逻辑（如销毁）也应继续
+	}
+
+	// 设置 Actor 的生命周期，让它在一段时间后自动从场景中移除
+	SetLifeSpan(5.0f); // 例如 5 秒后销毁
+	UE_LOG(LogTemp, Log, TEXT("%s: Set lifespan to 5 seconds."), *GetNameSafe(this));
 }
 
 

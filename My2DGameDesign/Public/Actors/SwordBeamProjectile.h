@@ -33,7 +33,7 @@ protected:
 	TWeakObjectPtr<AActor> InstigatorActor;
 
 	virtual void BeginPlay() override;
-
+    virtual void PostInitializeComponents() override;
 	UFUNCTION()
 	virtual void OnCollisionOverlapBegin(
 		UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,

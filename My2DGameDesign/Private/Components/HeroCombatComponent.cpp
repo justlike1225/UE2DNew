@@ -13,6 +13,7 @@
 #include "TimerManager.h"
 #include "Actors/SwordBeamProjectile.h"
 #include "GameFramework/PlayerController.h"
+#include "Interfaces/Damageable.h"
 
 UHeroCombatComponent::UHeroCombatComponent()
 {
@@ -354,70 +355,68 @@ void UHeroCombatComponent::ResetComboState()
 		}
 	}
 }
-
 void UHeroCombatComponent::OnAttackHit(
-	UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex,
-	bool bFromSweep,
-	const FHitResult& SweepResult)
+	UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (!OwnerCharacter.IsValid() || !OtherActor || OtherActor == OwnerCharacter.Get() || !OverlappedComponent || !
-		OtherComp)
+	// 1. 基本检查
+	if (!OwnerCharacter.IsValid() || !OtherActor || OtherActor == OwnerCharacter.Get() || !OverlappedComponent)
 	{
 		return;
 	}
 
+	// 2. 确定伤害值 (这部分逻辑保持不变)
 	float DamageToApply = 0.0f;
-	FName HitCompTag = NAME_None;
+	FName HitCompTag = OverlappedComponent->ComponentTags.IsValidIndex(0) ? OverlappedComponent->ComponentTags[0] : NAME_None;
 
-	if (OverlappedComponent->ComponentHasTag(AttackShapeNames::AttackHitBox))
+	if (HitCompTag != AttackShapeNames::AttackHitBox &&
+		HitCompTag != AttackShapeNames::AttackHitCapsule &&
+		HitCompTag != AttackShapeNames::ThrustAttackCapsule)
 	{
-		HitCompTag =
-			AttackShapeNames::AttackHitBox;
-	}
-	else if (OverlappedComponent->ComponentHasTag(AttackShapeNames::AttackHitCapsule))
-	{
-		HitCompTag =
-			AttackShapeNames::AttackHitCapsule;
-	}
-	else if (OverlappedComponent->ComponentHasTag(AttackShapeNames::ThrustAttackCapsule))
-	{
-		HitCompTag =
-			AttackShapeNames::ThrustAttackCapsule;
-	}
-
-	if (HitCompTag == NAME_None)
-	{
-		return;
+		return; // 不是已知的攻击形状
 	}
 
 	if (bIsPerformingAirAttack)
 	{
-		if (HitCompTag == AttackShapeNames::AttackHitCapsule)
+		if (HitCompTag == AttackShapeNames::AttackHitCapsule) // 假设空袭只用这个胶囊造成伤害
 		{
 			DamageToApply = CurrentAirAttackMeleeDamage;
+			UE_LOG(LogTemp, Log, TEXT("Hero Air Attack Hit %s with %s (Damage: %.1f)"), *OtherActor->GetName(), *HitCompTag.ToString(), DamageToApply);
 		}
 	}
-	else
+	else // 地面攻击
 	{
-		DamageToApply = CurrentGroundBaseAttackDamage;
+		DamageToApply = CurrentGroundBaseAttackDamage; // 地面攻击使用基础伤害
+		UE_LOG(LogTemp, Log, TEXT("Hero Ground Attack Hit %s with %s (Damage: %.1f)"), *OtherActor->GetName(), *HitCompTag.ToString(), DamageToApply);
 	}
 
+	// 3. 施加伤害 (修改部分)
 	if (DamageToApply > 0)
 	{
-		AController* DamageInstigatorController = nullptr;
-		if (APawn* OwnerPawn = Cast<APawn>(OwnerCharacter.Get()))
+		// --- 开始修改 ---
+		// 检查 OtherActor 是否实现了 IDamageable 接口
+		if (OtherActor->GetClass()->ImplementsInterface(UDamageable::StaticClass()))
 		{
-			DamageInstigatorController = OwnerPawn->GetController();
-		}
+			// 获取伤害施加者的控制器
+			AController* DamageInstigatorController = nullptr;
+			if (APawn* OwnerPawn = Cast<APawn>(OwnerCharacter.Get())) // 获取 Pawn
+			{
+				DamageInstigatorController = OwnerPawn->GetController(); // 从 Pawn 获取 Controller
+			}
 
-		UGameplayStatics::ApplyPointDamage(
-			OtherActor, DamageToApply, (SweepResult.ImpactPoint - OwnerCharacter->GetActorLocation()).GetSafeNormal(),
-			SweepResult,
-			DamageInstigatorController, OwnerCharacter.Get(), UDamageType::StaticClass()
-		);
+			// 调用接口函数施加伤害
+			// 参数：目标Actor, 伤害值, 伤害来源Actor (英雄自己), 来源控制器, HitResult
+			IDamageable::Execute_ApplyDamage(OtherActor, DamageToApply, OwnerCharacter.Get(), DamageInstigatorController, SweepResult);
+			UE_LOG(LogTemp, Log, TEXT("Applied damage %.1f to %s via IDamageable interface."), DamageToApply, *OtherActor->GetName());
+
+			// 可选：在这里添加击中效果等
+		}
+		else
+		{
+			// 如果对方没有实现 IDamageable 接口，则不施加伤害
+			UE_LOG(LogTemp, Log, TEXT("Actor %s does not implement IDamageable. No damage applied by HeroCombatComponent."), *OtherActor->GetName());
+		}
+	
 	}
 }
 

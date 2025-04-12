@@ -17,7 +17,12 @@ class MY2DGAMEDESIGN_API UEnemyAnimInstanceBase : public UPaperZDAnimInstance,
 
 public:
 	UEnemyAnimInstanceBase();
-
+	/**
+		* @brief 由 PaperZD 动画状态节点事件调用，用于重置受击状态标志。
+		* 需要在 PaperZD 编辑器中将此函数名绑定到 Hurt 状态节点的 "On Exit Function" 或类似事件上。
+		*/
+	UFUNCTION(BlueprintCallable, Category = "Animation State Events") // BlueprintCallable 允许蓝图子类调用或重写（如果需要）
+	void EnemyResetHurtState();
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy State | Movement",
 		meta = (AllowPrivateAccess = "true"))

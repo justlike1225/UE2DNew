@@ -12,6 +12,19 @@ UEnemyAnimInstanceBase::UEnemyAnimInstanceBase()
 	bIsDead = false;
 }
 
+
+void UEnemyAnimInstanceBase::EnemyResetHurtState()
+{
+	
+	if (this->bIsHurt)
+	{
+		UE_LOG(LogTemp, Log, TEXT("EnemyAnimInstance: EnemyResetHurtState called - Setting bIsHurt to false."));
+		this->bIsHurt = false;
+	}
+	
+}
+
+
 void UEnemyAnimInstanceBase::OnInit_Implementation()
 {
 	Super::OnInit_Implementation();
@@ -25,6 +38,7 @@ void UEnemyAnimInstanceBase::OnInit_Implementation()
 		}
 	}
 }
+
 void UEnemyAnimInstanceBase::OnTick_Implementation(float DeltaTime)
 {
 	Super::OnTick_Implementation(DeltaTime);
@@ -49,21 +63,17 @@ void UEnemyAnimInstanceBase::OnTick_Implementation(float DeltaTime)
 
 	// --- 从移动组件获取状态 ---
 	this->bIsFalling = OwnerMovementComponent->IsFalling(); // 获取是否在空中/坠落
-	FVector Velocity = OwnerMovementComponent->Velocity;     // 获取当前速度向量
+	FVector Velocity = OwnerMovementComponent->Velocity; // 获取当前速度向量
 
-	// --- 更新动画实例的变量 (核心修改处) ---
-	// 计算水平面上的速率 (速度向量在XY平面上的大小)
-	// Velocity.Size2D() 计算的是 sqrt(Velocity.X^2 + Velocity.Y^2)，总是非负数
+
 	this->Speed = Velocity.Size2D();
 
-	// 判断是否在移动 (速率大于一个很小的阈值)
-	// 现在无论向左还是向右移动，只要速度不为零，bIsMoving 就应该是 true
+	
 	this->bIsMoving = this->Speed > KINDA_SMALL_NUMBER; // KINDA_SMALL_NUMBER 通常是 1e-4f
 
-	// 可选：如果你还需要区分左右移动的速度（比如用于 BlendSpace），可以单独计算
-	// float ForwardSpeedComponent = FVector::DotProduct(Velocity, OwnerMovementComponent->GetOwner()->GetActorForwardVector());
-	// 但是动画状态转换通常只关心是否在移动 (bIsMoving) 以及移动速率 (Speed)
+	
 }
+
 void UEnemyAnimInstanceBase::OnMovementStateChanged_Implementation(float InSpeed, bool bInIsFalling, bool bInIsMoving)
 {
 	this->Speed = InSpeed;
@@ -86,17 +96,30 @@ void UEnemyAnimInstanceBase::OnDeathState_Implementation(AActor* Killer)
 }
 
 
-void UEnemyAnimInstanceBase::OnTakeHit_Implementation(float DamageAmount, const FVector& HitDirection,
-                                                      bool bInterruptsCurrentAction)
+void UEnemyAnimInstanceBase::OnTakeHit_Implementation(float DamageAmount, const FVector& HitDirection, bool bInterruptsCurrentAction)
 {
+	// 检查是否允许中断，以及角色是否已死亡
 	if (bInterruptsCurrentAction && !bIsDead)
 	{
-		this->bIsHurt = true;
-
-
-		this->bIsMoving = false;
-
-
-		JumpToNode(FName("HurtEntry"));
+		// --- 添加判断 ---
+		// 只有当角色当前不处于受击状态时，才触发新的受击状态
+		if (!this->bIsHurt)
+		{
+			UE_LOG(LogTemp, Log, TEXT("EnemyAnimInstance: OnTakeHit - First hit detected. Setting bIsHurt=true and jumping to HurtEntry."));
+			this->bIsHurt = true; // 标记进入受击状态
+			this->bIsMoving = false; // 视觉上停止移动
+			JumpToNode(FName("HurtEntry")); // 强制跳转到 Hurt 状态
+		}
+		else
+		{
+			// 如果当前 bIsHurt 已经是 true，说明正在播放上一次的受击动画
+			// 这里可以选择：
+			// 1. 什么都不做：让上一次的动画继续播放完，角色在动画期间对新的伤害暂时“无反应”（视觉上）。
+			// 2. 播放特效/音效：仍然可以播放受击特效或音效，但不打断动画。
+			// 3. （高级）可能需要通知状态机或动画节点某种方式来“刷新”或“强调”当前的受击状态，但不完全重置。
+			UE_LOG(LogTemp, Log, TEXT("EnemyAnimInstance: OnTakeHit - Hit while already hurt. Ignoring JumpToNode."));
+			// 这里我们选择方案 1：什么都不做，不重新跳转
+		}
+		// --- 判断结束 ---
 	}
 }
