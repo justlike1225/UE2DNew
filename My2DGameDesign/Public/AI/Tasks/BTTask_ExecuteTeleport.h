@@ -64,6 +64,6 @@ protected:
 	float LocationFindRadius = 150.0f;
 
 private:
-	UTeleportComponent* GetTeleportComponent(UBehaviorTreeComponent& OwnerComp) const;
+	
 	bool CalculateTargetLocation(UBehaviorTreeComponent& OwnerComp, FVector& OutLocation) const;
 };

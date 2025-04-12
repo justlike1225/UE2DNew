@@ -3,6 +3,9 @@
 #include "CoreMinimal.h"
 #include "Enemies/EnemyCharacterBase.h"
 #include "Interfaces/MeleeShapeProvider.h"
+#include "Interfaces/AI/Abilities/MeleeAbilityExecutor.h"
+#include "Interfaces/AI/Abilities/TeleportAbilityExecutor.h"
+#include "Interfaces/AI/Status/CombatStatusProvider.h"
 #include "EvilCreature.generated.h"
 
 class UEnemyMeleeAttackComponent;
@@ -17,7 +20,12 @@ namespace EvilCreatureAttackShapeNames
 }
 
 UCLASS()
-class MY2DGAMEDESIGN_API AEvilCreature : public AEnemyCharacterBase, public IMeleeShapeProvider
+class MY2DGAMEDESIGN_API AEvilCreature : public AEnemyCharacterBase,
+                                         public IMeleeShapeProvider,
+                                         public ICombatStatusProvider,
+                                         public IMeleeAbilityExecutor,
+                                         public ITeleportAbilityExecutor
+
 {
 	GENERATED_BODY()
 
@@ -25,6 +33,12 @@ public:
 	AEvilCreature();
 	virtual UPrimitiveComponent* GetMeleeShapeComponent_Implementation(FName ShapeIdentifier) const override;
 
+	virtual bool CanPerformMeleeAttack_Implementation() const override;
+	virtual bool CanPerformTeleport_Implementation() const override;
+	virtual bool IsPerformingMeleeAttack_Implementation() const override;
+	virtual bool IsPerformingTeleport_Implementation() const override;
+	virtual bool ExecuteMeleeAttack_Implementation(AActor* Target) override;
+	virtual bool ExecuteTeleportToLocation_Implementation(const FVector& TargetLocation) override;
 	UFUNCTION(BlueprintPure, Category = "Components | Combat")
 	UEnemyMeleeAttackComponent* GetMeleeAttackComponent() const { return MeleeAttackComponent; }
 

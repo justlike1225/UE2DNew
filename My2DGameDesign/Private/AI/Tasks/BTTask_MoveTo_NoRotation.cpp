@@ -2,11 +2,8 @@
 
 #include "AI/Tasks/BTTask_MoveTo_NoRotation.h"
 #include "AIController.h"
-#include "NavigationSystem.h"
 #include "GameFramework/Pawn.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "GameFramework/Character.h"
-#include "GameFramework/CharacterMovementComponent.h"
 #include "Navigation/PathFollowingComponent.h"
 
 UBTTask_MoveTo_NoRotation::UBTTask_MoveTo_NoRotation()

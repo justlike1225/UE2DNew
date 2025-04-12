@@ -21,9 +21,9 @@ AAfterImageActor::AAfterImageActor()
 	AfterImageSprite->SetLooping(false);
 	AfterImageSprite->SetVisibility(false);
 
-	SetActorHiddenInGame(true);
+	AActor::SetActorHiddenInGame(true);
 	SetActorEnableCollision(false);
-	SetActorTickEnabled(false);
+	AActor::SetActorTickEnabled(false);
 }
 
 void AAfterImageActor::BeginPlay()
