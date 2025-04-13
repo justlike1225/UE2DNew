@@ -39,7 +39,8 @@ public:
 	virtual bool CanPerformTeleport_Implementation() const override;
 	virtual bool IsPerformingMeleeAttack_Implementation() const override;
 	virtual bool IsPerformingTeleport_Implementation() const override;
-	virtual bool ExecuteMeleeAttack_Implementation(AActor* Target) override;
+	virtual bool ExecuteMeleeAttack_Implementation(EEnemyMeleeAttackType AttackType, AActor* Target) override;
+
 	virtual bool ExecuteTeleportToLocation_Implementation(const FVector& TargetLocation) override;
 	UFUNCTION(BlueprintPure, Category = "Components | Combat")
 	UEnemyMeleeAttackComponent* GetMeleeAttackComponent() const { return MeleeAttackComponent; }

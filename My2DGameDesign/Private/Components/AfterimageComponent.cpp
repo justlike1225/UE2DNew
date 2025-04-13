@@ -37,25 +37,15 @@ void UAfterimageComponent::BeginPlay()
 			DashComp->OnDashStarted_Event.AddDynamic(this, &UAfterimageComponent::StartSpawning);
 			DashComp->OnDashEnded_Event.AddDynamic(this, &UAfterimageComponent::StopSpawning);
 		}
-		else
-		{
-		}
+
 		OwnerSpriteComponent = Owner->FindComponentByClass<UPaperFlipbookComponent>();
-		if (!OwnerSpriteComponent.IsValid())
-		{
-		}
+		
 	}
 	
 	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
 	if (GameInstance)
 	{
 		AfterImagePoolSubsystemPtr = GameInstance->GetSubsystem<UAfterImagePoolSubsystem>();
-		if (AfterImagePoolSubsystemPtr)
-		{
-		}
-		else
-		{
-		}
 	}
 
 	if (!AfterImagePoolSubsystemPtr)

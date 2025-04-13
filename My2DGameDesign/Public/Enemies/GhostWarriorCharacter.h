@@ -44,13 +44,13 @@ public:
 
 	// ICombatStatusProvider
 	virtual bool CanPerformMeleeAttack_Implementation() const override;
-	virtual bool CanPerformTeleport_Implementation() const override; // 必须实现，即使返回 false
+	virtual bool CanPerformTeleport_Implementation() const override;
 	virtual bool IsPerformingMeleeAttack_Implementation() const override;
-	virtual bool IsPerformingTeleport_Implementation() const override; // 必须实现，即使返回 false
+	virtual bool IsPerformingTeleport_Implementation() const override; 
+	virtual bool ExecuteMeleeAttack_Implementation(EEnemyMeleeAttackType AttackType, AActor* Target) override;
 	// 你可能还需要添加 CanPerformRangedAttack 等，都返回 false
 
-	// IMeleeAbilityExecutor
-	virtual bool ExecuteMeleeAttack_Implementation(AActor* Target) override;
+
 
 	// IEnemyAnimationEventHandler
 	virtual void HandleAnim_ActivateMeleeCollision_Implementation(FName ShapeIdentifier, float Duration) override;

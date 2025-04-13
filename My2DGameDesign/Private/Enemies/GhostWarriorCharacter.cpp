@@ -133,10 +133,16 @@ bool AGhostWarriorCharacter::IsPerformingTeleport_Implementation() const
 	return false;
 }
 
-bool AGhostWarriorCharacter::ExecuteMeleeAttack_Implementation(AActor* Target)
+bool AGhostWarriorCharacter::ExecuteMeleeAttack_Implementation(EEnemyMeleeAttackType AttackType, AActor* Target) 
 {
-	// 委托给 MeleeAttackComponent 执行
-	return MeleeAttackComponent ? MeleeAttackComponent->ExecuteAttack(Target) : false;
+	// 委托给 MeleeAttackComponent 执行，传递 AttackType
+	if (MeleeAttackComponent)
+	{
+		return MeleeAttackComponent->ExecuteAttack(AttackType, Target);
+		// 或者: return MeleeAttackComponent->ExecuteAttack(AttackIndex, Target);
+	}
+	UE_LOG(LogTemp, Warning, TEXT("AGhostWarriorCharacter::ExecuteMeleeAttack: MeleeAttackComponent is null!"));
+	return false;
 }
 
 void AGhostWarriorCharacter::HandleAnim_ActivateMeleeCollision_Implementation(FName ShapeIdentifier, float Duration)
@@ -173,6 +179,4 @@ void AGhostWarriorCharacter::HandleAnim_ResetMeleeState_Implementation()
 	}
     else { UE_LOG(LogTemp, Warning, TEXT("%s: Could not get AnimationComponent in ResetMeleeState."), *GetNameSafe(this)); }
 
-    // 如果需要，也可以在这里通知 MeleeAttackComponent 攻击动画序列结束
-    // if (MeleeAttackComponent) { MeleeAttackComponent->SomeEndOfSequenceNotification(); }
 }

@@ -112,18 +112,19 @@ bool AEvilCreature::IsPerformingTeleport_Implementation() const
 	return false;
 }
 
-bool AEvilCreature::ExecuteMeleeAttack_Implementation(AActor* Target)
+
+
+bool AEvilCreature::ExecuteMeleeAttack_Implementation(EEnemyMeleeAttackType AttackType, AActor* Target) 
 {
-	// 检查 MeleeAttackComponent 是否有效，并调用其 ExecuteAttack() 方法
+	// 委托给 MeleeAttackComponent 执行，传递 AttackType
 	if (MeleeAttackComponent)
 	{
-		return MeleeAttackComponent->ExecuteAttack(Target);
+		return MeleeAttackComponent->ExecuteAttack(AttackType, Target);
+		// 或者: return MeleeAttackComponent->ExecuteAttack(AttackIndex, Target);
 	}
-	// 如果没有近战组件，则认为无法执行攻击
+	UE_LOG(LogTemp, Warning, TEXT("AGhostWarriorCharacter::ExecuteMeleeAttack: MeleeAttackComponent is null!"));
 	return false;
 }
-
-
 bool AEvilCreature::ExecuteTeleportToLocation_Implementation(const FVector& TargetLocation)
 {
 	if (TeleportComponent)

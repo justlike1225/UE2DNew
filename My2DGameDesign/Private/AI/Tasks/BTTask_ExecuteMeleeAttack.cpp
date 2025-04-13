@@ -5,7 +5,6 @@
 #include "GameFramework/Pawn.h"
 #include "Interfaces/AI/Abilities/MeleeAbilityExecutor.h"
 #include "Interfaces/AI/Status/CombatStatusProvider.h"
-
 UBTTask_ExecuteMeleeAttack::UBTTask_ExecuteMeleeAttack()
 {
     NodeName = "Execute Melee Attack (Interface)";
@@ -30,7 +29,8 @@ void UBTTask_ExecuteMeleeAttack::CleanupMemory(UBehaviorTreeComponent& OwnerComp
     MyMemory->bIsExecutingAttack = false;
 }
 
-EBTNodeResult::Type UBTTask_ExecuteMeleeAttack::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+EBTNodeResult::Type UBTTask_ExecuteMeleeAttack::
+ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
     FBTExecuteMeleeAttackMemory* MyMemory = CastInstanceNodeMemory<FBTExecuteMeleeAttackMemory>(NodeMemory);
     MyMemory->bIsExecutingAttack = false;
@@ -60,7 +60,7 @@ EBTNodeResult::Type UBTTask_ExecuteMeleeAttack::ExecuteTask(UBehaviorTreeCompone
         return EBTNodeResult::Failed;
     }
 
-    if (IMeleeAbilityExecutor::Execute_ExecuteMeleeAttack(ControlledPawn, TargetActor))
+    if (IMeleeAbilityExecutor::Execute_ExecuteMeleeAttack(ControlledPawn,CurrentAttackType, TargetActor))
     {
         UE_LOG(LogTemp, Log, TEXT("BTTask_ExecuteMeleeAttack: Execute_ExecuteMeleeAttack returned true. Task InProgress for %s."), *ControlledPawn->GetName());
         MyMemory->bIsExecutingAttack = true;

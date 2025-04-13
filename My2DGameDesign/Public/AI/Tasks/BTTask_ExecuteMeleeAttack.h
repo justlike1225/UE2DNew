@@ -2,9 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "BehaviorTree/BTTaskNode.h"
+#include "Interfaces/AI/Abilities/MeleeAbilityExecutor.h"
 #include "UObject/Interface.h"
 #include "BTTask_ExecuteMeleeAttack.generated.h"
 
+enum class  EEnemyMeleeAttackType : uint8;
 // 前向声明接口
 class UBehaviorTreeComponent;
 class ICombatStatusProvider;
@@ -34,6 +36,9 @@ public:
 	UBTTask_ExecuteMeleeAttack();
 
 protected:
+	UPROPERTY(EditAnywhere, Category = Task, meta = (DisplayName = "攻击类型")) // 让策划可以在 BT 编辑器里选
+	EEnemyMeleeAttackType CurrentAttackType = EEnemyMeleeAttackType::Attack1; // 提供默认值
+
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
@@ -41,7 +46,7 @@ protected:
 	virtual void InitializeMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryInit::Type InitType) const override;
 	virtual void CleanupMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryClear::Type CleanupType) const override;
 
-	/** 黑板键：目标 Actor，可选 */
+	/** 黑板键：目标 Actor */
 	UPROPERTY(EditAnywhere, Category = Blackboard, meta = (DisplayName = "目标Actor"))
 	FBlackboardKeySelector TargetActorKey;
 };

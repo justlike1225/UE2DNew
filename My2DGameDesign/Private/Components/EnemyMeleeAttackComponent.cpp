@@ -9,9 +9,8 @@
 #include "TimerManager.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
-#include "Kismet/KismetMathLibrary.h"
 #include "Utils/CombatGameplayStatics.h"
-
+#include "Enum/EnemyMeleeAttackType.h"
 UEnemyMeleeAttackComponent::UEnemyMeleeAttackComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -52,50 +51,53 @@ void UEnemyMeleeAttackComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 	Super::EndPlay(EndPlayReason);
 }
 
-
-bool UEnemyMeleeAttackComponent::ExecuteAttack(AActor* Target)
+bool UEnemyMeleeAttackComponent::ExecuteAttack(EEnemyMeleeAttackType AttackType, AActor* Target) // <--- 新函数实现
 {
-	// 基础检查 (保持不变)
+	
 	if (!bCanAttack || bIsAttacking || !AttackSettings || !OwnerEnemyCharacter.IsValid())
 	{
-		// ... (日志保持不变) ...
 		return false;
 	}
-
-	// --- 修改：在组件内部选择攻击索引 ---
-	int32 ChosenAttackIndex=0; // 默认值
-	if (AttackSettings->MaxAttackIndex >= AttackSettings->MinAttackIndex)
+	
+	int32 AnimationAttackIndex = 0;
+	switch(AttackType)
 	{
-		// 使用 UKismetMathLibrary::RandomIntegerInRange 来获取随机整数
-		ChosenAttackIndex = UKismetMathLibrary::RandomIntegerInRange(AttackSettings->MinAttackIndex, AttackSettings->MaxAttackIndex);
+		case EEnemyMeleeAttackType::Attack1:
+			AnimationAttackIndex = 1;
+			break;
+		case EEnemyMeleeAttackType::Attack2:
+			AnimationAttackIndex = 2;
+			break;
+		case EEnemyMeleeAttackType::Default:
+		default:
 		
+			AnimationAttackIndex = 1;
+			UE_LOG(LogTemp, Warning, TEXT("UEnemyMeleeAttackComponent: Received Default AttackType, using index 1."));
+			break;
 	}
-	else
-	{
-		// 如果最大值小于最小值（配置错误），则使用最小值
-		ChosenAttackIndex = AttackSettings->MinAttackIndex;
-		UE_LOG(LogTemp, Warning, TEXT("UEnemyMeleeAttackComponent: MaxAttackIndex < MinAttackIndex in AttackSettings. Using MinAttackIndex: %d"), ChosenAttackIndex);
-	}
-	// --- 选择结束 ---
 
-
-	// 设置状态和启动冷却 (保持不变)
+	
 	bIsAttacking = true;
 	bCanAttack = false;
 	BeginAttackSwing();
 	StartAttackCooldown();
 
-	// 调用动画监听器，并传递刚选择的索引
+	// 调用动画监听器，传递“决定好”的索引
 	TScriptInterface<IEnemyMeleeAttackAnimListener> Listener = GetAnimListener();
 	if (Listener)
 	{
-		// 使用 ChosenAttackIndex
-		Listener->Execute_OnMeleeAttackStarted(Listener.GetObject(), Target, ChosenAttackIndex);
+		// 使用 AnimationAttackIndex
+		Listener->Execute_OnMeleeAttackStarted(Listener.GetObject(), Target, AnimationAttackIndex);
+		UE_LOG(LogTemp, Log, TEXT("UEnemyMeleeAttackComponent: Started Attack Index %d via AnimListener."), AnimationAttackIndex);
 	}
-	
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UEnemyMeleeAttackComponent: Could not get AnimListener to start attack animation!"));
+	}
 
 	return true;
 }
+
 
 void UEnemyMeleeAttackComponent::ActivateMeleeCollision(FName ShapeIdentifier, float Duration)
 {

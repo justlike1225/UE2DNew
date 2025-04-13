@@ -6,6 +6,7 @@
 #include "Containers/Set.h"
 #include "EnemyMeleeAttackComponent.generated.h"
 
+enum class  EEnemyMeleeAttackType : uint8;
 class UEnemyMeleeAttackSettingsDA;
 class AEnemyCharacterBase;
 class AActor;
@@ -25,9 +26,9 @@ class MY2DGAMEDESIGN_API UEnemyMeleeAttackComponent : public UActorComponent
 public:
 	UEnemyMeleeAttackComponent();
 
-	UFUNCTION(BlueprintCallable, Category = "Enemy Attack | Melee")
-	bool ExecuteAttack(AActor* Target = nullptr);
 
+	UFUNCTION(BlueprintCallable, Category = "Enemy Attack | Melee") 
+	bool ExecuteAttack(EEnemyMeleeAttackType AttackType, AActor* Target = nullptr); 
 	UFUNCTION(BlueprintPure, Category = "Enemy Attack | Melee | Status")
 	bool CanAttack() const { return bCanAttack; }
 
