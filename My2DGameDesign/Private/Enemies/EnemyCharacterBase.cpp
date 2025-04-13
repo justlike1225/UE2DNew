@@ -38,6 +38,7 @@ AEnemyCharacterBase::AEnemyCharacterBase()
 		MoveComp->bConstrainToPlane = true;
 		MoveComp->SetPlaneConstraintAxisSetting(EPlaneConstraintAxisSetting::Y); // 通常约束在 Y=0 的平面
 		MoveComp->SetPlaneConstraintNormal(FVector(0.f, 1.f, 0.f)); // 平面法线指向 Y 轴
+		bUseControllerRotationYaw = false;
 	}
 }
 
@@ -77,6 +78,7 @@ void AEnemyCharacterBase::ApplyMovementSettings()
 		MoveComp->JumpZVelocity = MovementSettings->JumpZVelocity;
 		MoveComp->AirControl = MovementSettings->AirControl;
 		MoveComp->GravityScale = MovementSettings->GravityScale;
+		MoveComp ->MaxFlySpeed = MovementSettings->MaxFlySpeed; 
 		// ... 应用其他你添加到数据资产的属性 ...
 	}
 	else
@@ -119,12 +121,7 @@ void AEnemyCharacterBase::PossessedBy(AController* NewController)
 			}
 			BlackboardComp->SetValueAsObject(FName("SelfActor"), this);
 			bool bRunSuccess = AIController->RunBehaviorTree(BehaviorTree);
-			if (!bRunSuccess)
-			{
-			}
-			else
-			{
-			}
+		
 		}
 	
 	}

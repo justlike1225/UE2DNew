@@ -8,12 +8,12 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interfaces/AnimationListener/CharacterAnimationStateListener.h"
 #include "DataAssets/HeroDA/HeroCombatSettingsDA.h"
-#include "Kismet/GameplayStatics.h"
 #include "GameFramework/DamageType.h"
 #include "TimerManager.h"
 #include "Actors/SwordBeamProjectile.h"
 #include "GameFramework/PlayerController.h"
 #include "Interfaces/Damageable.h"
+#include "Utils/CombatGameplayStatics.h"
 
 UHeroCombatComponent::UHeroCombatComponent()
 {
@@ -209,6 +209,7 @@ void UHeroCombatComponent::HandleAttackInputTriggered(const FInputActionValue& V
 
 void UHeroCombatComponent::PerformGroundCombo()
 {
+	bool bStartingNewCombo = (ComboCount == 0);
 	ComboCount++;
 	bCanCombo = false;
 
@@ -219,6 +220,16 @@ void UHeroCombatComponent::PerformGroundCombo()
 	{
 		GetWorld()->GetTimerManager().ClearTimer(ResetComboTimer);
 		GetWorld()->GetTimerManager().ClearTimer(AttackCooldownTimer);
+	}
+	if (bStartingNewCombo && OwnerCharacter.IsValid())
+	{
+		UCharacterMovementComponent* MoveComp = OwnerCharacter->GetCharacterMovement();
+		// 最好确保是在地面上开始的 Combo
+		if (MoveComp && MoveComp->IsMovingOnGround())
+		{
+			UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: Broadcasting OnGroundComboStarted."));
+			OnGroundComboStarted.Broadcast(); // <--- 广播开始事件
+		}
 	}
 
 	if (ComboCount >= CurrentMaxGroundComboCount)
@@ -326,6 +337,7 @@ void UHeroCombatComponent::OnAirAttackCooldownFinished()
 
 void UHeroCombatComponent::ResetComboState()
 {
+	bool bWasInGroundCombo = (ComboCount > 0 && !bIsPerformingAirAttack);
 	bool bWasAirAttacking = bIsPerformingAirAttack;
 	bool bComboReset = (ComboCount != 0);
 
@@ -339,6 +351,11 @@ void UHeroCombatComponent::ResetComboState()
 		GetWorld()->GetTimerManager().ClearTimer(AttackCooldownTimer);
 	}
 
+	if (bWasInGroundCombo) // 确保我们确实是从地面 Combo 状态结束的
+	{
+		UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: Broadcasting OnGroundComboEnded."));
+		OnGroundComboEnded.Broadcast(); // <--- 广播结束事件
+	}
 	if (bComboReset || bWasAirAttacking)
 	{
 		TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimListener();
@@ -393,8 +410,11 @@ void UHeroCombatComponent::OnAttackHit(
 	// 3. 施加伤害 (修改部分)
 	if (DamageToApply > 0)
 	{
-		// --- 开始修改 ---
-		// 检查 OtherActor 是否实现了 IDamageable 接口
+		AActor* Attacker = OwnerCharacter.Get();
+		if (!UCombatGameplayStatics::CanDamageActor(Attacker, OtherActor))
+		{
+			return; // 如果不能伤害，直接返回
+		}
 		if (OtherActor->GetClass()->ImplementsInterface(UDamageable::StaticClass()))
 		{
 			// 获取伤害施加者的控制器

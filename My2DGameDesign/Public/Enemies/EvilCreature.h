@@ -47,7 +47,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Components | Ability")
 	UTeleportComponent* GetTeleportComponent() const { return TeleportComponent; }
 
-	// --- 新增：实现 IEnemyAnimationEventHandler 接口 ---
+	
 	/** 处理来自动画通知的“激活近战碰撞体”事件 */
 	virtual void HandleAnim_ActivateMeleeCollision_Implementation(FName ShapeIdentifier, float Duration) override;
 	/** 处理来自动画通知的“完成传送状态”事件 */

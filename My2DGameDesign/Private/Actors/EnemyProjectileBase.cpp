@@ -7,6 +7,7 @@
 #include "Interfaces/Damageable.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Controller.h"
+#include "Utils/CombatGameplayStatics.h"
 
 AEnemyProjectileBase::AEnemyProjectileBase()
 {
@@ -83,6 +84,13 @@ void AEnemyProjectileBase::OnProjectileOverlapBegin_Implementation(UPrimitiveCom
 
 	if (OtherActor->GetClass()->ImplementsInterface(UDamageable::StaticClass()))
 	{
+		
+		AActor* Attacker = InstigatorActor.Get(); // 获取发射者
+		if (!UCombatGameplayStatics::CanDamageActor(Attacker, OtherActor))
+		{
+			return; // 如果不能伤害，直接返回
+		}
+	
 		AController* EventInstigator = InstigatorController.Get();
 		IDamageable::Execute_ApplyDamage(OtherActor, CurrentDamage, InstigatorActor.Get(), EventInstigator,
 		                                 SweepResult);

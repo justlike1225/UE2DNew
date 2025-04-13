@@ -4,6 +4,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Interfaces/Damageable.h"
 #include "GameFramework/Controller.h"
+#include "Utils/CombatGameplayStatics.h"
 
 ASwordBeamProjectile::ASwordBeamProjectile()
 {
@@ -18,6 +19,7 @@ ASwordBeamProjectile::ASwordBeamProjectile()
 
 
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
+	
 }
 
 void ASwordBeamProjectile::BeginPlay()
@@ -40,7 +42,8 @@ void ASwordBeamProjectile::PostInitializeComponents()
 	}
     if (SpriteComponent)
     {
-	    SpriteComponent->SetupAttachment(RootComponent);
+    	SpriteComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+
     	SpriteComponent->SetCollisionProfileName(TEXT("NoCollision"));
     }
 	if (ProjectileMovement)
@@ -103,7 +106,12 @@ void ASwordBeamProjectile::OnCollisionOverlapBegin(
 	{
 		return; // 忽略这些情况
 	}
-
+	AActor* Attacker = InstigatorActor.Get(); // 发射者是攻击者
+	if (!UCombatGameplayStatics::CanDamageActor(Attacker, OtherActor))
+	{
+		// 注意：如果玩家需要能攻击友方，这里的逻辑需要调整
+		return; // 如果不能伤害，直接返回
+	}
 	// 2. 检查 OtherActor 是否实现了 IDamageable 接口
 	// 使用 UDamageable::StaticClass() 获取接口的 UClass
 	if (OtherActor->GetClass()->ImplementsInterface(UDamageable::StaticClass()))

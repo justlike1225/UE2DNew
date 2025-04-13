@@ -51,6 +51,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Air", meta = (ClampMin = "0.0"))
 	float GravityScale = 1.0f;
 
+	/** @brief 飞行单位的最大飞行速度 (单位: cm/s)。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Air", meta = (ClampMin = "0.0"))
+    float MaxFlySpeed = 350.0f; 
+
+	/** @brief 飞行单位的制动减速度 (单位: cm/s^2)。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Air", meta = (ClampMin = "0.0"))
+	float BrakingDecelerationFlying= 2048.0f; // 飞行时的制动减速度 (单位: cm/s^2)
 	// --- 其他 ---
 	// 你可以在这里添加更多来自 UCharacterMovementComponent 的属性，例如:
 	// MaxFlySpeed, MaxSwimSpeed, BrakingFrictionFactor, RotationRate 等等，根据你的需要。

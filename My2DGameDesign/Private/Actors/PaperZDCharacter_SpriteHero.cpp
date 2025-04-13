@@ -14,7 +14,6 @@
 #include "Components/HeroCombatComponent.h"    // 战斗组件
 #include "Interfaces/InputBindingComponent.h"  // 输入绑定接口
 #include "Interfaces/AnimationListener/CharacterAnimationStateListener.h" // 动画状态监听接口
-#include "InputMappingContext.h"             // 输入映射上下文
 #include "DataAssets/CharacterMovementSettingsDA.h" // <--- 包含运动设置数据资产头文件
 
 // 构造函数
@@ -112,6 +111,19 @@ void APaperZDCharacter_SpriteHero::BeginPlay()
 		}
 		// 可能还需要同步跳跃/坠落状态等，取决于你的动画蓝图需求
 	}
+	if (CombatComponent)
+	{
+		CombatComponent->OnGroundComboStarted.AddDynamic(this, &APaperZDCharacter_SpriteHero::HandleComboStarted);
+		CombatComponent->OnGroundComboEnded.AddDynamic(this, &APaperZDCharacter_SpriteHero::HandleComboEnded);
+		UE_LOG(LogTemp, Log, TEXT("SpriteHero: Bound to CombatComponent delegates."));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SpriteHero: CombatComponent is NULL in BeginPlay, cannot bind delegates."));
+	}
+
+	// 确保初始状态正确
+	bMovementInputBlocked = false;
 }
 
 // 应用数据资产中的运动设置到移动组件
@@ -392,6 +404,7 @@ void APaperZDCharacter_SpriteHero::OnJumpCompleted(const FInputActionValue& Valu
 // 移动键按住 (持续触发)
 void APaperZDCharacter_SpriteHero::OnMoveTriggered(const FInputActionValue& Value)
 {
+	if (bMovementInputBlocked) { return; } // 如果输入被阻止，则返回
 	// 获取输入轴的值 (通常是 -1.0 到 1.0)
 	const float MoveValue = Value.Get<float>();
 	bool bWasWalking = bIsWalking; // 记录之前的行走状态
@@ -513,4 +526,37 @@ void APaperZDCharacter_SpriteHero::SetDirection(float Direction) const
     {
          UE_LOG(LogTemp, Warning, TEXT("SetDirection: GetSprite() returned null for %s."), *GetNameSafe(this));
     }
+}
+// 如果需要，在 EndPlay 中解绑 (通常 AddDynamic 会自动处理，但显式解绑更安全)
+void APaperZDCharacter_SpriteHero::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (CombatComponent)
+	{
+		 if (CombatComponent->OnGroundComboStarted.IsBound()) // 检查是否已绑定
+			 CombatComponent->OnGroundComboStarted.RemoveDynamic(this, &APaperZDCharacter_SpriteHero::HandleComboStarted);
+		 if (CombatComponent->OnGroundComboEnded.IsBound())
+			 CombatComponent->OnGroundComboEnded.RemoveDynamic(this, &APaperZDCharacter_SpriteHero::HandleComboEnded);
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
+// 实现处理函数
+void APaperZDCharacter_SpriteHero::HandleComboStarted()
+{
+	UE_LOG(LogTemp, Log, TEXT("SpriteHero: HandleComboStarted - Blocking movement input."));
+	bMovementInputBlocked = true;
+
+	// 立即停止当前移动 (可选，取决于手感)
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		// MoveComp->StopMovementKeepPathing(); // 停止当前移动请求
+		MoveComp->Velocity.X = 0.f; // 或者直接清零速度
+		// MoveComp->Velocity.Y = 0.f;
+	}
+}
+
+void APaperZDCharacter_SpriteHero::HandleComboEnded()
+{
+	UE_LOG(LogTemp, Log, TEXT("SpriteHero: HandleComboEnded - Allowing movement input."));
+	bMovementInputBlocked = false;
 }

@@ -120,6 +120,19 @@ protected:
 	void InitializeMovementParameters();
 	void SetupCamera();
 	void SetDirection(float Direction) const;
+	virtual void EndPlay(EEndPlayReason::Type EndPlayReason) override;
+
+	/** 标记移动输入是否被当前动作（如 Combo）阻止 */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Character State", meta=(AllowPrivateAccess="true"))
+	bool bMovementInputBlocked = false;
+
+	/** 响应 Combo 开始事件的处理函数 */
+	UFUNCTION()
+	void HandleComboStarted();
+
+	/** 响应 Combo 结束事件的处理函数 */
+	UFUNCTION()
+	void HandleComboEnded();
 
 private:
 	void ApplyMovementSettings(); 

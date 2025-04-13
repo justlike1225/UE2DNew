@@ -30,7 +30,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Components | Health")
 	UHealthComponent* GetHealthComponent() const { return HealthComponent; }
 
-	/** @brief 该敌人使用的运动属性配置数据资产 */ // <--- 新增属性
+	/** @brief 该敌人使用的运动属性配置数据资产 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration | Movement")
 	TObjectPtr<UCharacterMovementSettingsDA> MovementSettings;
 	virtual float ApplyDamage_Implementation(float DamageAmount, AActor* DamageCauser,

@@ -22,7 +22,8 @@ template <class InterfaceType>
 class TScriptInterface;
 class UBoxComponent; // <-- 添加 BoxComponent 前向声明
 class UCapsuleComponent; // <-- 添加 CapsuleComponent 前向声明
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGroundComboStartedSignature);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGroundComboEndedSignature);
 // --- 用于 AnimNotify 识别攻击形状的常量名称 ---
 namespace AttackShapeNames
 {
@@ -38,7 +39,13 @@ class MY2DGAMEDESIGN_API UHeroCombatComponent : public UActorComponent, public I
 
 public:
 	UHeroCombatComponent();
+	/** 当地面连击序列开始时广播 */
+	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
+	FOnGroundComboStartedSignature OnGroundComboStarted;
 
+	/** 当地面连击序列结束（完成、中断或重置）时广播 */
+	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
+	FOnGroundComboEndedSignature OnGroundComboEnded;
 	// --- 输入动作 ---
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> ComboAttackAction;

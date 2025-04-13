@@ -10,6 +10,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Utils/CombatGameplayStatics.h"
 
 UEnemyMeleeAttackComponent::UEnemyMeleeAttackComponent()
 {
@@ -62,13 +63,12 @@ bool UEnemyMeleeAttackComponent::ExecuteAttack(AActor* Target)
 	}
 
 	// --- 修改：在组件内部选择攻击索引 ---
-	int32 ChosenAttackIndex = 1; // 默认值
+	int32 ChosenAttackIndex=0; // 默认值
 	if (AttackSettings->MaxAttackIndex >= AttackSettings->MinAttackIndex)
 	{
 		// 使用 UKismetMathLibrary::RandomIntegerInRange 来获取随机整数
 		ChosenAttackIndex = UKismetMathLibrary::RandomIntegerInRange(AttackSettings->MinAttackIndex, AttackSettings->MaxAttackIndex);
-		UE_LOG(LogTemp, Log, TEXT("UEnemyMeleeAttackComponent: Randomly chose AttackIndex: %d (Range: %d-%d)"),
-			   ChosenAttackIndex, AttackSettings->MinAttackIndex, AttackSettings->MaxAttackIndex);
+		
 	}
 	else
 	{
@@ -92,12 +92,8 @@ bool UEnemyMeleeAttackComponent::ExecuteAttack(AActor* Target)
 		// 使用 ChosenAttackIndex
 		Listener->Execute_OnMeleeAttackStarted(Listener.GetObject(), Target, ChosenAttackIndex);
 	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("UEnemyMeleeAttackComponent::ExecuteAttack: No valid AnimListener found."));
-	}
+	
 
-	UE_LOG(LogTemp, Log, TEXT("UEnemyMeleeAttackComponent::ExecuteAttack: Attack initiated with Index %d."), ChosenAttackIndex);
 	return true;
 }
 
@@ -254,6 +250,11 @@ void UEnemyMeleeAttackComponent::HandleAttackOverlap(
 
 	if (OtherActor->GetClass()->ImplementsInterface(UDamageable::StaticClass()))
 	{
+		
+		if (!UCombatGameplayStatics::CanDamageActor(OwnerActor, OtherActor))
+		{
+			return; // 如果不能伤害，直接返回
+		}
 		HitActorsThisSwing.Add(OtherActor);
 
 		float DamageToApply = 0.0f;
