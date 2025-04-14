@@ -5,6 +5,7 @@
 #include "PaperZDAnimInstance.h"
 #include "AIController.h"
 #include "BrainComponent.h"
+#include "AI/AIC/EnemyAIControllerBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
@@ -19,7 +20,7 @@
 AEnemyCharacterBase::AEnemyCharacterBase()
 {
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
-	AIControllerClass = AAIController::StaticClass();
+	AIControllerClass = AEnemyAIControllerBase::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 	bIsFacingRight = bAssetFacesRightByDefault;
 
@@ -53,6 +54,7 @@ void AEnemyCharacterBase::BeginPlay()
 		HealthComponent->OnDeath.AddDynamic(this, &AEnemyCharacterBase::HandleDeath);
 	}
 	ApplyMovementSettings();
+	
 }
 
 // 新增辅助函数实现

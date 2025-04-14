@@ -23,13 +23,10 @@ void UEnemyActivateMeleeCollisionNotify::OnReceiveNotify_Implementation(UPaperZD
         return;
     }
 
-    // 3. 检查 OwningActor 是否实现了我们的事件处理器接口
-    // UEnemyAnimationEventHandler::StaticClass() 用于获取接口的 UClass
+   
     if (OwnerActor->GetClass()->ImplementsInterface(UEnemyAnimationEventHandler::StaticClass()))
     {
-        // 4. 如果实现了接口，就调用接口的 HandleAnim_ActivateMeleeCollision 函数
-        // IEnemyAnimationEventHandler::Execute_FunctionName(ActorPtr, Arg1, Arg2...) 是 C++ 调用接口函数的标准方式
-        // 将存储在 Notify 实例中的 ShapeIdentifier 和 Duration 作为参数传递
+      
         IEnemyAnimationEventHandler::Execute_HandleAnim_ActivateMeleeCollision(OwnerActor, ShapeIdentifier, Duration);
         UE_LOG(LogTemp, Verbose, TEXT("EnemyActivateMeleeCollisionNotify: Called HandleAnim_ActivateMeleeCollision on %s"), *OwnerActor->GetName());
     }

@@ -97,14 +97,6 @@ UPrimitiveComponent* AGhostWarriorCharacter::GetMeleeShapeComponent_Implementati
 	{
 		return AttackShape;
 	}
-	// 如果有多个，可以用GetComponentsByTag查找
-    /*
-    TArray<UActorComponent*> Components = GetComponentsByTag(UPrimitiveComponent::StaticClass(), ShapeIdentifier);
-    if (Components.Num() > 0)
-    {
-        return Cast<UPrimitiveComponent>(Components[0]);
-    }
-    */
 	UE_LOG(LogTemp, Warning, TEXT("%s: GetMeleeShapeComponent - Could not find shape with identifier: %s"), *GetNameSafe(this), *ShapeIdentifier.ToString());
 	return nullptr;
 }

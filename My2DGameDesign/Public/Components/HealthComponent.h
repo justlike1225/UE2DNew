@@ -87,9 +87,7 @@ protected:
 	/** 当前生命值 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Health | Status",
 		meta = (AllowPrivateAccess = "true"))
-	// VisibleInstanceOnly: 只能在关卡中选中实例时看到这个值（用于调试），不能编辑。
-	// BlueprintReadOnly: 蓝图只能读取，不能写入。
-	// AllowPrivateAccess: 允许在类定义内部直接访问（即使它是 private 或 protected）。
+	
 	float CurrentHealth = 0.0f;
 
 	/** 最大生命值 (运行时使用的最终值，通常由 DefaultMaxHealth 初始化) */

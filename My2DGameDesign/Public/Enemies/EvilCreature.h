@@ -32,7 +32,7 @@ class MY2DGAMEDESIGN_API AEvilCreature : public AEnemyCharacterBase,
 
 public:
 	AEvilCreature();
-	virtual void PostInitializeComponents() override;
+	
 	virtual UPrimitiveComponent* GetMeleeShapeComponent_Implementation(FName ShapeIdentifier) const override;
 
 	virtual bool CanPerformMeleeAttack_Implementation() const override;
@@ -55,7 +55,7 @@ public:
 	virtual void HandleAnim_FinishTeleportState_Implementation() override;
 	/** 处理来自动画通知的“重置近战攻击状态”事件 */
 	virtual void HandleAnim_ResetMeleeState_Implementation() override;
-	// --- 接口实现结束 ---
+	
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components | Combat",
 		meta = (AllowPrivateAccess = "true"))
@@ -69,6 +69,6 @@ protected:
 		meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCapsuleComponent> MeleeHit1;
 
-
+	virtual void PostInitializeComponents() override;
 	virtual void BeginPlay() override;
 };
