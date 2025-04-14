@@ -334,44 +334,48 @@ void UHeroCombatComponent::OnAirAttackCooldownFinished()
 {
 	bCanAirAttack = true;
 }
-
 void UHeroCombatComponent::ResetComboState()
 {
 	bool bWasInGroundCombo = (ComboCount > 0 && !bIsPerformingAirAttack);
 	bool bWasAirAttacking = bIsPerformingAirAttack;
-	bool bComboReset = (ComboCount != 0);
+	bool bStateChanged = (ComboCount != 0 || bIsPerformingAirAttack); // 标记状态是否真的改变了
 
+	// --- 重置核心状态 ---
 	ComboCount = 0;
-	bCanCombo = true;
+	bCanCombo = true; // 重置后应该可以开始新连击 (除非有冷却)
 	bIsPerformingAirAttack = false;
 
+	// --- 清理计时器 ---
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(ResetComboTimer);
-		GetWorld()->GetTimerManager().ClearTimer(AttackCooldownTimer);
+	
 	}
 
-	if (bWasInGroundCombo) // 确保我们确实是从地面 Combo 状态结束的
+
+	if (bWasInGroundCombo)
 	{
-		UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: Broadcasting OnGroundComboEnded."));
-		OnGroundComboEnded.Broadcast(); // <--- 广播结束事件
+		UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: Broadcasting OnGroundComboEnded due to ResetComboState."));
+		OnGroundComboEnded.Broadcast(); // 这个会通知 Actor 将 bMovementInputBlocked 设为 false
 	}
-	if (bComboReset || bWasAirAttacking)
+
+	// --- 通知动画实例 ---
+	if (bStateChanged) // 只有在状态确实改变时才通知，避免冗余调用
 	{
 		TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimListener();
 		if (Listener)
 		{
-			if (bComboReset)
-			{
-				Listener->Execute_OnCombatStateChanged(Listener.GetObject(), ComboCount);
-			}
-			if (bWasAirAttacking)
+			// 总是通知 ComboCount 为 0
+			Listener->Execute_OnCombatStateChanged(Listener.GetObject(), ComboCount);
+
+			if (bWasAirAttacking) // 如果之前是空袭状态，通知空袭结束
 			{
 				Listener->Execute_OnAirAttackStateChanged(Listener.GetObject(), false);
 			}
 		}
 	}
 }
+
 void UHeroCombatComponent::OnAttackHit(
 	UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -565,12 +569,13 @@ void UHeroCombatComponent::NotifyLanded()
 		}
 	}
 }
-
 void UHeroCombatComponent::HandleActionInterrupt()
 {
-	if (ComboCount > 0 || bIsPerformingAirAttack)
+	UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: HandleActionInterrupt called."));
+	// 检查是否确实有需要中断的状态
+	if (ComboCount > 0 || bIsPerformingAirAttack || ActiveAttackCollisionShape.IsValid() || GetWorld()->GetTimerManager().IsTimerActive(AttackCollisionTimer))
 	{
-		ResetComboState();
-		DeactivateCurrentAttackCollision();
+		ResetComboState(); // 重置逻辑状态
+		DeactivateCurrentAttackCollision(); // 关闭当前攻击碰撞
 	}
 }

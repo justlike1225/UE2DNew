@@ -25,25 +25,7 @@ AEnemyCharacterBase::AEnemyCharacterBase()
 
 	HealthBarWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBarWidgetComponent"));
 	HealthBarWidgetComponent->SetupAttachment(RootComponent);
-	HealthBarWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 60.0f));
-	HealthBarWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
-	HealthBarWidgetComponent->SetDrawSize(FIntPoint(100, 15));
-	HealthBarWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	HealthBarWidgetComponent->SetVisibility(false);
-
-	bIsFacingRight = bAssetFacesRightByDefault;
-	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
-	{
-		MoveComp->bUseControllerDesiredRotation = false;
-		MoveComp->bOrientRotationToMovement = false;
-		MoveComp->RotationRate = FRotator(0.f, 0.f, 0.f);
-		MoveComp->bConstrainToPlane = true;
-		MoveComp->SetPlaneConstraintAxisSetting(EPlaneConstraintAxisSetting::Y);
-		MoveComp->SetPlaneConstraintNormal(FVector(0.f, 1.f, 0.f));
-		bUseControllerRotationYaw = false;
-	}
 }
-
 void AEnemyCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
@@ -90,21 +72,14 @@ void AEnemyCharacterBase::OnHealthChangedHandler(float CurrentHealth, float MaxH
 	// 检查 Widget 是否实现了我们的接口
 	if (HealthWidget->GetClass()->ImplementsInterface(UHealthBarWidgetInterface::StaticClass()))
 	{
-		if (GEngine) // 保留你的调试日志
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, FString::Printf(TEXT("Calling Interface UpdateHealth: %.0f / %.0f"), CurrentHealth, MaxHealth));
-		}
+		
 		// 安全地调用接口函数
 		IHealthBarWidgetInterface::Execute_UpdateHealth(HealthWidget, CurrentHealth, MaxHealth);
 		HealthBarWidgetComponent->SetVisibility(CurrentHealth > 0);
 	}
 	else
 	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, TEXT("Widget does NOT implement IHealthBarWidgetInterface!"));
-		}
-		// 即使接口未实现，显隐逻辑可能仍需执行
+		
 		HealthBarWidgetComponent->SetVisibility(CurrentHealth > 0);
 	}
 }
@@ -166,8 +141,33 @@ void AEnemyCharacterBase::PossessedBy(AController* NewController)
 	}
 }
 
+void AEnemyCharacterBase::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	
+	HealthBarWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 28.0f));
+	HealthBarWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
+	HealthBarWidgetComponent->SetDrawSize(FIntPoint(25, 4));
+	HealthBarWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    HealthBarWidgetComponent->SetVisibility(true);
+	//旋转Z90
+	HealthBarWidgetComponent->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
+	
+	bIsFacingRight = bAssetFacesRightByDefault;
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->bUseControllerDesiredRotation = false;
+		MoveComp->bOrientRotationToMovement = false;
+		MoveComp->RotationRate = FRotator(0.f, 0.f, 0.f);
+		MoveComp->bConstrainToPlane = true;
+		MoveComp->SetPlaneConstraintAxisSetting(EPlaneConstraintAxisSetting::Y);
+		MoveComp->SetPlaneConstraintNormal(FVector(0.f, 1.f, 0.f));
+		bUseControllerRotationYaw = false;
+	}
+}
+
 float AEnemyCharacterBase::ApplyDamage_Implementation(float DamageAmount, AActor* DamageCauser,
-													  AController* InstigatorController, const FHitResult& HitResult)
+                                                      AController* InstigatorController, const FHitResult& HitResult)
 {
 	if (!HealthComponent)
 	{

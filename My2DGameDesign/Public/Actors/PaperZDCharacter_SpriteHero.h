@@ -40,7 +40,7 @@ class MY2DGAMEDESIGN_API APaperZDCharacter_SpriteHero : public APaperZDCharacter
 
 public:
 	APaperZDCharacter_SpriteHero();
-
+	void NotifyHurtRecovery();
 	// --- Team ID and Attitude ---
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Team")
 	FGenericTeamId TeamId = FGenericTeamId(0);
@@ -78,6 +78,8 @@ public:
 	virtual float ApplyDamage_Implementation(float DamageAmount, AActor* DamageCauser, AController* InstigatorController, const FHitResult& HitResult) override; // <--- IDamageable implementation declaration
 
 protected:
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Character State", meta=(AllowPrivateAccess="true"))
+	bool bIsIncapacitated = false;
     // --- Components ---
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UAfterimageComponent> AfterimageComponent;

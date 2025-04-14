@@ -1,5 +1,7 @@
 // 文件路径: My2DGameDesign/Private/AniInstance/HeroPaperZDAnimInstance.cpp
 #include "AniInstance/HeroPaperZDAnimInstance.h"
+
+#include "Actors/PaperZDCharacter_SpriteHero.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Actor.h"
 #include "Engine/Engine.h"
@@ -7,10 +9,50 @@
 
 void UHeroPaperZDAnimInstance::ExitHurtAnimStateEvent()
 {
-	bIsHurt = false;
-	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Hurt"));
+	// 1. 重置动画实例内部的 bIsHurt 标志，允许状态机转换
+	if (this->bIsHurt)
+	{
+		this->bIsHurt = false;
+        UE_LOG(LogTemp, Log, TEXT("HeroAnimInstance: Resetting bIsHurt flag to false."));
+	}
+
+	// 2. 获取 Owning Actor 并尝试调用其恢复函数
+	AActor* OwningActor = GetOwningActor();
+	if (APaperZDCharacter_SpriteHero* OwnerHero = Cast<APaperZDCharacter_SpriteHero>(OwningActor))
+	{
+        UE_LOG(LogTemp, Log, TEXT("HeroAnimInstance: Notifying character %s to recover from incapacitated state."), *OwnerHero->GetName());
+		OwnerHero->NotifyHurtRecovery(); // <--- 通知角色恢复行动能力
+	}
+    else if (OwningActor)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("HeroAnimInstance: Owning Actor %s is not APaperZDCharacter_SpriteHero, cannot notify hurt recovery."), *OwningActor->GetName());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("HeroAnimInstance: Could not get Owning Actor in ExitHurtAnimStateEvent."));
+    }
+
+	// GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Hurt State Exited in AnimInstance")); // 可以修改或保留日志
 }
 
+void UHeroPaperZDAnimInstance::OnTakeHit_Implementation(float DamageAmount, const FVector& HitDirection, bool bInterruptsCurrentAction)
+{
+	if (bInterruptsCurrentAction && !bIsDead)
+	{
+		// 简化：主要负责设置 bIsHurt 和跳转动画状态
+		if (!this->bIsHurt) // 防止在 Hurt 状态内重复触发跳转
+		{
+			UE_LOG(LogTemp, Log, TEXT("HeroAnimInstance: OnTakeHit - Setting bIsHurt=true and jumping to HeroHurt state."));
+			this->bIsHurt = true;
+			JumpToNode(AnimationJumpNodeName::HeroHurt);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("HeroAnimInstance: OnTakeHit - Hit while already hurt. bIsHurt remains true."));
+		}
+	
+	}
+}
 void UHeroPaperZDAnimInstance::OnInit_Implementation()
 {
 	Super::OnInit_Implementation();
@@ -113,30 +155,7 @@ void UHeroPaperZDAnimInstance::OnAirAttackStateChanged_Implementation(bool bNewI
 
 
 
-/** 处理受击事件 */
-void UHeroPaperZDAnimInstance::OnTakeHit_Implementation(float DamageAmount, const FVector& HitDirection, bool bInterruptsCurrentAction)
-{
-	// 检查是否允许中断，以及角色是否已死亡
-	if (bInterruptsCurrentAction && !bIsDead)
-	{
-		// 只有当角色当前不处于受击状态时，才触发新的受击状态
-		if (!this->bIsHurt)
-		{
-			UE_LOG(LogTemp, Log, TEXT("HeroAnimInstance: OnTakeHit - First hit detected. Setting bIsHurt=true and jumping to Hurt state (if exists)."));
-			this->bIsHurt = true; // 标记进入受击状态
-			this->bIsMovingOnGround = false;
-			this->bIsWalking = false;
-			this->bIsRunning = false;
-			this->bIsDashing = false;
-			this->bIsAirAttacking = false;
-			this->ComboCount = 0; // 受击通常会中断连击
 
-		JumpToNode(FName("HeroHurt"));
-		
-		}
-	
-	}
-}
 
 /** 处理死亡事件 */
 void UHeroPaperZDAnimInstance::OnDeathState_Implementation(AActor* Killer)
@@ -158,7 +177,7 @@ void UHeroPaperZDAnimInstance::OnDeathState_Implementation(AActor* Killer)
 	this->GroundSpeed = 0.0f;
 	this->VerticalSpeed = 0.0f;
 
- JumpToNode(FName("Death")); 
+ JumpToNode(AnimationJumpNodeName::HeroDeath); 
   
 }
 

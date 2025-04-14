@@ -79,7 +79,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat|AnimNotify")
 	void ActivateAttackCollision(FName ShapeIdentifier, float Duration);
 
-	// --- 新增：响应角色落地事件的函数 ---
+	
 	UFUNCTION(BlueprintCallable, Category = "Combat|State")
 	void NotifyLanded();
 

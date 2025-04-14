@@ -2,6 +2,7 @@
 #include "Enemies/EnemyCharacterBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Actor.h"
+#include "My2DGameDesign/My2DGameDesign.h"
 
 UEnemyAnimInstanceBase::UEnemyAnimInstanceBase()
 {
@@ -92,7 +93,7 @@ void UEnemyAnimInstanceBase::OnDeathState_Implementation(AActor* Killer)
 	this->Speed = 0.0f;
 
 
-	JumpToNode(FName("DeathEntry"));
+	JumpToNode(AnimationJumpNodeName::EnemyDeath);
 }
 
 
@@ -108,18 +109,8 @@ void UEnemyAnimInstanceBase::OnTakeHit_Implementation(float DamageAmount, const 
 			UE_LOG(LogTemp, Log, TEXT("EnemyAnimInstance: OnTakeHit - First hit detected. Setting bIsHurt=true and jumping to HurtEntry."));
 			this->bIsHurt = true; // 标记进入受击状态
 			this->bIsMoving = false; // 视觉上停止移动
-			JumpToNode(FName("HurtEntry")); // 强制跳转到 Hurt 状态
+			JumpToNode(AnimationJumpNodeName::EnemyHurt); // 强制跳转到 Hurt 状态
 		}
-		else
-		{
-			// 如果当前 bIsHurt 已经是 true，说明正在播放上一次的受击动画
-			// 这里可以选择：
-			// 1. 什么都不做：让上一次的动画继续播放完，角色在动画期间对新的伤害暂时“无反应”（视觉上）。
-			// 2. 播放特效/音效：仍然可以播放受击特效或音效，但不打断动画。
-			// 3. （高级）可能需要通知状态机或动画节点某种方式来“刷新”或“强调”当前的受击状态，但不完全重置。
-			UE_LOG(LogTemp, Log, TEXT("EnemyAnimInstance: OnTakeHit - Hit while already hurt. Ignoring JumpToNode."));
-			// 这里我们选择方案 1：什么都不做，不重新跳转
-		}
-		// --- 判断结束 ---
+		
 	}
 }

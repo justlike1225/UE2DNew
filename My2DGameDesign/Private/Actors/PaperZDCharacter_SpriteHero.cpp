@@ -6,7 +6,6 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "PaperFlipbookComponent.h"
 #include "GameFramework/PlayerController.h"
-#include "PaperZDAnimInstance.h"
 #include "PaperZDAnimationComponent.h"
 #include "AniInstance/HeroPaperZDAnimInstance.h"
 #include "Camera/CameraComponent.h"
@@ -31,10 +30,9 @@ APaperZDCharacter_SpriteHero::APaperZDCharacter_SpriteHero()
 	CombatComponent = CreateDefaultSubobject<UHeroCombatComponent>(TEXT("CombatComponent"));
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 
-	// --- 新增：创建 HealthComponent ---
+
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
-	// 可以在蓝图中设置 HealthComponent 的 DefaultMaxHealth，或在此处设置:
-	// HealthComponent->DefaultMaxHealth = 100.0f;
+
 
 	// 设置移动组件的基础属性
 	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
@@ -56,6 +54,17 @@ APaperZDCharacter_SpriteHero::APaperZDCharacter_SpriteHero()
 	bIsRunning = false;
 	bIsCanJump = false;
 }
+
+void APaperZDCharacter_SpriteHero::NotifyHurtRecovery()
+{
+	// 如果确实处于硬直状态，则解除
+	if (bIsIncapacitated)
+	{
+		bIsIncapacitated = false;
+		UE_LOG(LogTemp, Log, TEXT("%s: Incapacitated state ended (Notified by AnimInstance)."), *GetNameSafe(this));
+	}
+}
+
 
 // BeginPlay: 在游戏开始时执行初始化
 void APaperZDCharacter_SpriteHero::BeginPlay()
@@ -345,18 +354,20 @@ void APaperZDCharacter_SpriteHero::OnWalkingOffLedge_Implementation(const FVecto
 // 跳跃键按下
 void APaperZDCharacter_SpriteHero::OnJumpStarted(const FInputActionValue& Value)
 {
-    // --- 新增：死亡或受击时不能跳跃 ---
-    if (HealthComponent && HealthComponent->IsDead()) return;
-    if (AnimationStateListener && AnimationStateListener.GetInterface() /* 检查有效性 */ && Cast<UHeroPaperZDAnimInstance>(AnimationStateListener.GetObject())->bIsHurt) return; // 假设可以这样检查 bIsHurt
-    // --- 新增结束 ---
+	// --- 修改检查 ---
+	if (HealthComponent && HealthComponent->IsDead()) return;
+	if (bIsIncapacitated) return; // <--- 检查角色自身的硬直状态
+	// --- 修改结束 ---
 
 	if (!bIsCanJump) { return; }
 	bIsCanJump = false;
-	OnActionWillInterrupt.Broadcast(); // 广播中断事件
+	OnActionWillInterrupt.Broadcast(); // 广播中断事件 (例如打断攻击)
 	Jump();                      // 执行引擎跳跃
-	if (AnimationStateListener) { AnimationStateListener->Execute_OnJumpRequested(AnimationStateListener.GetObject()); } // 通知动画
-}
 
+	// 通知动画实例播放跳跃动画 (这部分不变)
+	TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimStateListener_Implementation();
+	if (Listener) { Listener->Execute_OnJumpRequested(Listener.GetObject()); }
+}
 // 跳跃键松开
 void APaperZDCharacter_SpriteHero::OnJumpCompleted(const FInputActionValue& Value)
 {
@@ -366,9 +377,9 @@ void APaperZDCharacter_SpriteHero::OnJumpCompleted(const FInputActionValue& Valu
 // 移动键按住 (持续触发)
 void APaperZDCharacter_SpriteHero::OnMoveTriggered(const FInputActionValue& Value)
 {
-    // --- 新增：死亡时不能移动 ---
-    if (HealthComponent && HealthComponent->IsDead()) return;
-    // --- 新增结束 ---
+	if (HealthComponent && HealthComponent->IsDead()) return;
+	if (bIsIncapacitated) return;
+   
 
 	if (bMovementInputBlocked) { return; } // 如果输入被阻止
 	const float MoveValue = Value.Get<float>();
@@ -400,22 +411,24 @@ void APaperZDCharacter_SpriteHero::OnMoveCompleted(const FInputActionValue& Valu
 	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement()) { MoveComp->MaxWalkSpeed = CachedWalkSpeed; }
 }
 
-// 奔跑键按住 (持续触发)
 void APaperZDCharacter_SpriteHero::OnRunTriggered(const FInputActionValue& Value)
 {
-    // --- 新增：死亡或受击时不能奔跑 ---
-    if (HealthComponent && HealthComponent->IsDead()) return;
-    if (AnimationStateListener && AnimationStateListener.GetInterface() && Cast<UHeroPaperZDAnimInstance>(AnimationStateListener.GetObject())->bIsHurt) return;
-    // --- 新增结束 ---
+	// --- 修改检查 ---
+	if (HealthComponent && HealthComponent->IsDead()) return;
+	if (bIsIncapacitated) return; // <--- 检查角色自身的硬直状态
+	if (bMovementInputBlocked) return; // 保留攻击期间的移动阻止检查
+	// --- 修改结束 ---
 
 	bool bWasRunning = bIsRunning;
 	if (bIsWalking && !bIsRunning) // 只有在行走且未奔跑时才能开始奔跑
 	{
 		bIsRunning = true;
 		if (UCharacterMovementComponent* MoveComp = GetCharacterMovement()) { MoveComp->MaxWalkSpeed = CachedRunSpeed; }
-		if (bIsRunning != bWasRunning && AnimationStateListener)
+		// 通知动画实例 (这部分依然需要，用于更新视觉状态)
+		TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimStateListener_Implementation();
+		if (bIsRunning != bWasRunning && Listener)
 		{
-			AnimationStateListener->Execute_OnIntentStateChanged(AnimationStateListener.GetObject(), bIsWalking, bIsRunning);
+			Listener->Execute_OnIntentStateChanged(Listener.GetObject(), bIsWalking, bIsRunning);
 		}
 	}
 }
@@ -488,46 +501,52 @@ void APaperZDCharacter_SpriteHero::HandleComboEnded()
 	
 	bMovementInputBlocked = false;
 }
-
-
 float APaperZDCharacter_SpriteHero::ApplyDamage_Implementation(float DamageAmount, AActor* DamageCauser, AController* InstigatorController, const FHitResult& HitResult)
 {
-	if (!HealthComponent)
-	{
-		UE_LOG(LogTemp, Error, TEXT("%s::ApplyDamage_Implementation: HealthComponent is missing!"), *GetNameSafe(this));
-		return 0.0f;
-	}
-    // 如果已经死亡，不再接受伤害
-	if (HealthComponent->IsDead())
+	if (!HealthComponent || HealthComponent->IsDead())
 	{
 		return 0.0f;
 	}
 
-	// 将伤害处理委托给 HealthComponent
 	float ActualDamage = HealthComponent->TakeDamage(DamageAmount, DamageCauser, InstigatorController);
 	UE_LOG(LogTemp, Log, TEXT("%s took %.1f actual damage from %s."), *GetNameSafe(this), ActualDamage, *GetNameSafe(DamageCauser));
 
-	// --- 如果造成了实际伤害并且角色未死亡，则通知动画实例播放受击 ---
 	if (ActualDamage > 0.f && !HealthComponent->IsDead())
 	{
-		TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimStateListener_Implementation();
-		if (Listener)
+		// --- 强化中断处理 ---
+		bool bShouldInterrupt = true; // 假设受击总是中断
+		if (bShouldInterrupt)
 		{
-			// 计算受击方向
-			FVector HitDirection = FVector::ZeroVector;
-			if (DamageCauser) { HitDirection = (GetActorLocation() - DamageCauser->GetActorLocation()).GetSafeNormal(); }
-			else if (HitResult.IsValidBlockingHit()) { HitDirection = -HitResult.ImpactNormal; }
-			bool bShouldInterrupt = true; 
+			UE_LOG(LogTemp, Log, TEXT("ApplyDamage: Interrupting action due to taking damage."));
 
-			Listener->Execute_OnTakeHit(Listener.GetObject(), ActualDamage, HitDirection, bShouldInterrupt); // <--- 调用接口
-			UE_LOG(LogTemp, Verbose, TEXT("ApplyDamage: Notified Animation Listener OnTakeHit."));
+			// 1. 立即设置硬直状态
+			bIsIncapacitated = true;
+			// 2. 立即解除移动锁定 (硬直优先级更高)
+			bMovementInputBlocked = false; // 直接设置，确保移动输入检查通过（虽然硬直本身会阻止移动）
+
+			if (CombatComponent)
+			{
+				
+				BroadcastActionInterrupt_Implementation(); // 确保这个调用能可靠地重置所有攻击状态
+			}
+         
+			TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimStateListener_Implementation();
+			if (Listener)
+			{
+				FVector HitDirection = FVector::ZeroVector;
+				if (DamageCauser) { HitDirection = (GetActorLocation() - DamageCauser->GetActorLocation()).GetSafeNormal(); }
+				else if (HitResult.IsValidBlockingHit()) { HitDirection = -HitResult.ImpactNormal; }
+
+				Listener->Execute_OnTakeHit(Listener.GetObject(), ActualDamage, HitDirection, bShouldInterrupt);
+				UE_LOG(LogTemp, Verbose, TEXT("ApplyDamage: Notified Animation Listener OnTakeHit."));
+			}
+			else { UE_LOG(LogTemp, Warning, TEXT("ApplyDamage: Could not get CharacterAnimationStateListener to notify OnTakeHit.")); }
 		}
-		else { UE_LOG(LogTemp, Warning, TEXT("ApplyDamage: Could not get CharacterAnimationStateListener to notify OnTakeHit.")); }
 	}
-	// --- 通知结束 ---
 
 	return ActualDamage;
 }
+
 
 
 void APaperZDCharacter_SpriteHero::HandleDeath(AActor* Killer)
