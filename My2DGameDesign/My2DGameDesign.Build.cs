@@ -9,7 +9,7 @@ public class My2DGameDesign : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicDependencyModuleNames.AddRange(new[]
-			{ "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "PaperZD", "Niagara", "Paper2D" });
+			{ "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "PaperZD", "Niagara", "Paper2D", "UMG"  });
 
 		PrivateDependencyModuleNames.AddRange(new[] { "AIModule", "GameplayTasks", "NavigationSystem" });
 

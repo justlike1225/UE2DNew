@@ -5,6 +5,8 @@
 #include "Interfaces/Damageable.h"
 #include "Interfaces/AnimationListenerProvider//EnemySpecificAnimListenerProvider.h"
 #include "Interfaces/FacingDirectionProvider.h"
+#include "Components/WidgetComponent.h"
+#include "Templates/SubclassOf.h"
 #include "EnemyCharacterBase.generated.h"
 
 class UEnemyAISettingsDA;
@@ -14,6 +16,8 @@ class UPaperZDAnimInstance;
 class AAIController;
 class UEnemyAnimInstanceBase;
 class UCharacterMovementSettingsDA;
+class UUserWidget;
+
 UCLASS(Abstract)
 class MY2DGAMEDESIGN_API AEnemyCharacterBase : public APaperZDCharacter,
                                                public IDamageable,
@@ -24,15 +28,16 @@ class MY2DGAMEDESIGN_API AEnemyCharacterBase : public APaperZDCharacter,
 
 public:
 	AEnemyCharacterBase();
-	/** @brief 该敌人使用的 AI 配置数据资产 */
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI | Configuration")
 	TObjectPtr<UEnemyAISettingsDA> AISettings;
+
 	UFUNCTION(BlueprintPure, Category = "Components | Health")
 	UHealthComponent* GetHealthComponent() const { return HealthComponent; }
 
-	/** @brief 该敌人使用的运动属性配置数据资产 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration | Movement")
 	TObjectPtr<UCharacterMovementSettingsDA> MovementSettings;
+
 	virtual float ApplyDamage_Implementation(float DamageAmount, AActor* DamageCauser,
 	                                         AController* InstigatorController, const FHitResult& HitResult) override;
 
@@ -47,13 +52,22 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category="AI | Configuration")
 	TObjectPtr<UBehaviorTree> BehaviorTree;
+
 	virtual void SetFacingDirection(bool bFaceRight);
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components | UI", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UWidgetComponent> HealthBarWidgetComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI | Configuration")
+	TSubclassOf<UUserWidget> HealthBarWidgetClass;
 
 protected:
 	virtual void BeginPlay() override;
 	virtual void PossessedBy(AController* NewController) override;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character | Visuals", meta=(AllowPrivateAccess="true"))
-	bool bAssetFacesRightByDefault ;
+	bool bAssetFacesRightByDefault;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UHealthComponent> HealthComponent;
 
@@ -61,14 +75,16 @@ protected:
 		meta=(AllowPrivateAccess = "true"))
 	TWeakObjectPtr<UPaperZDAnimInstance> CachedAnimInstancePtr;
 
-	UFUNCTION()
+	UFUNCTION() 
 	virtual void HandleDeath(AActor* Killer);
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="State | Direction", meta=(AllowPrivateAccess="true"))
-	bool bIsFacingRight ;
+	bool bIsFacingRight;
+
+	UFUNCTION()
+	virtual void OnHealthChangedHandler(float CurrentHealth, float MaxHealth);
 
 private:
 	void CacheBaseAnimInstance();
-	/** @brief 应用 MovementSettings 数据资产中的配置到移动组件 */ // <--- 新增辅助函数声明
 	void ApplyMovementSettings();
 };

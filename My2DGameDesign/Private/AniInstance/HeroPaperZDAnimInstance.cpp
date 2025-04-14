@@ -8,6 +8,7 @@
 void UHeroPaperZDAnimInstance::ExitHurtAnimStateEvent()
 {
 	bIsHurt = false;
+	GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("Hurt"));
 }
 
 void UHeroPaperZDAnimInstance::OnInit_Implementation()
