@@ -15,4 +15,5 @@ namespace AnimationJumpNodeName
 
 	const FName EnemyHurt = TEXT("EnemyHurt");
 	const FName EnemyDeath = TEXT("EnemyDeath");
+	const FName HeroFalling = TEXT("HeroFalling");
 }

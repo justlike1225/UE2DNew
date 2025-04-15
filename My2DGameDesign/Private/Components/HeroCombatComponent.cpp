@@ -1,7 +1,7 @@
 #include "Components/HeroCombatComponent.h"
 #include "EnhancedInputComponent.h"
 #include "PaperZDCharacter.h"
-#include "Actors/PaperZDCharacter_SpriteHero.h"
+
 #include "PaperFlipbookComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -10,9 +10,11 @@
 #include "DataAssets/HeroDA/HeroCombatSettingsDA.h"
 #include "GameFramework/DamageType.h"
 #include "TimerManager.h"
+#include "Actors/PaperZDCharacter_SpriteHero.h"
 #include "Actors/SwordBeamProjectile.h"
 #include "GameFramework/PlayerController.h"
 #include "Interfaces/Damageable.h"
+#include "Interfaces/AnimationListenerProvider/HeroAnimationStateProvider.h"
 #include "Utils/CombatGameplayStatics.h"
 
 UHeroCombatComponent::UHeroCombatComponent()
@@ -195,10 +197,6 @@ void UHeroCombatComponent::HandleAttackInputTriggered(const FInputActionValue& V
 	else if (!bIsPerformingAirAttack)
 	{
 		if (!bCanCombo && ComboCount > 0)
-		{
-			return;
-		}
-		if (AttackCooldownTimer.IsValid())
 		{
 			return;
 		}

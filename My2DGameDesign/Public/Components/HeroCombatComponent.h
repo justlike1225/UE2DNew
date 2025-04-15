@@ -20,8 +20,8 @@ class UEnhancedInputComponent;
 class ICharacterAnimationStateListener;
 template <class InterfaceType>
 class TScriptInterface;
-class UBoxComponent; // <-- 添加 BoxComponent 前向声明
-class UCapsuleComponent; // <-- 添加 CapsuleComponent 前向声明
+class UBoxComponent;
+class UCapsuleComponent; 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGroundComboStartedSignature);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGroundComboEndedSignature);
 // --- 用于 AnimNotify 识别攻击形状的常量名称 ---
@@ -39,6 +39,9 @@ class MY2DGAMEDESIGN_API UHeroCombatComponent : public UActorComponent, public I
 
 public:
 	UHeroCombatComponent();
+	
+	void PerformGroundCombo();
+	void PerformAirAttack();
 	/** 当地面连击序列开始时广播 */
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
 	FOnGroundComboStartedSignature OnGroundComboStarted;
@@ -136,9 +139,7 @@ protected:
 	UFUNCTION()
 	void HandleAttackInputTriggered(const FInputActionValue& Value);
 
-	// --- 核心逻辑 (保持不变) ---
-	void PerformGroundCombo();
-	void PerformAirAttack();
+
 	void SpawnSwordBeam();
 
 	// --- 状态重置与冷却 (保持不变) ---
@@ -184,4 +185,6 @@ private:
 	// 记录当前由 AnimNotify 激活的碰撞体，以便 Deactivate
 	UPROPERTY()
 	TWeakObjectPtr<UPrimitiveComponent> ActiveAttackCollisionShape;
+
+	
 };

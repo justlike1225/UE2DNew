@@ -1,5 +1,6 @@
 // 文件路径: My2DGameDesign/Public/Actors/PaperZDCharacter_SpriteHero.h
 #pragma once
+
 #include "CoreMinimal.h"
 #include "GenericTeamAgentInterface.h"
 #include "InputActionValue.h"
@@ -8,10 +9,12 @@
 #include "Interfaces/AnimationListenerProvider/HeroAnimationStateProvider.h"
 #include "Interfaces/FacingDirectionProvider.h"
 #include "UObject/ScriptInterface.h"
-#include "Interfaces/Damageable.h" // <--- 包含 IDamageable 接口头文件
+#include "Interfaces/Damageable.h"
+#include "Templates/SubclassOf.h"
 #include "PaperZDCharacter_SpriteHero.generated.h"
 
-class UHealthComponent; // <--- 前向声明 UHealthComponent
+// --- 前向声明 ---
+class UHealthComponent;
 class UCharacterMovementSettingsDA;
 class UPaperZDAnimInstance;
 class UHeroCombatComponent;
@@ -24,7 +27,9 @@ class UInputMappingContext;
 class UInputAction;
 class UPaperFlipbookComponent;
 class ICharacterAnimationStateListener;
-struct FHitResult; // <--- 前向声明 FHitResult
+struct FHitResult;
+class UHeroStateBase;
+class UIdleState;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnActionInterruptSignature);
 
@@ -34,34 +39,34 @@ class MY2DGAMEDESIGN_API APaperZDCharacter_SpriteHero : public APaperZDCharacter
                                                         public IActionInterruptSource,
                                                         public IHeroAnimationStateProvider,
                                                         public IGenericTeamAgentInterface,
-                                                        public IDamageable // <--- 添加 IDamageable 到继承列表
+                                                        public IDamageable
 {
 	GENERATED_BODY()
 
 public:
 	APaperZDCharacter_SpriteHero();
-	void NotifyHurtRecovery();
-	// --- Team ID and Attitude ---
+
+	UFUNCTION(BlueprintCallable, Category = "State Management")
+	void ChangeState(TSubclassOf<UHeroStateBase> NewStateClass);
+
+	UFUNCTION(BlueprintPure, Category = "State Management")
+	UHeroStateBase* GetCurrentState() const { return CurrentState; }
+
+	void NotifyHurtRecovery() const;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Team")
 	FGenericTeamId TeamId = FGenericTeamId(0);
 	virtual FGenericTeamId GetGenericTeamId() const override { return TeamId; }
 	virtual ETeamAttitude::Type GetTeamAttitudeTowards(const AActor& Other) const override;
 
-    // --- Movement and Direction ---
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration | Movement")
 	TObjectPtr<UCharacterMovementSettingsDA> MovementSettings;
 	virtual FVector GetFacingDirection_Implementation() const override;
-    UFUNCTION(BlueprintPure, Category = "Movement")
-	bool IsWalking() const { return bIsWalking; }
-	UFUNCTION(BlueprintPure, Category = "Movement")
-	bool IsRunning() const { return bIsRunning; }
 
-	// --- Action Interrupt ---
 	UPROPERTY(BlueprintAssignable, Category = "Character|Events")
 	FOnActionInterruptSignature OnActionWillInterrupt;
 	virtual void BroadcastActionInterrupt_Implementation() override;
 
-	// --- Component Getters ---
 	UFUNCTION(BlueprintPure, Category = "Components")
 	UDashComponent* GetDashComponent() const { return DashComponent; }
 	UFUNCTION(BlueprintPure, Category = "Components")
@@ -69,18 +74,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Components")
 	UHeroCombatComponent* GetHeroCombatComponent() const { return CombatComponent; }
 	UFUNCTION(BlueprintPure, Category = "Components | Health")
-	UHealthComponent* GetHealthComponent() const { return HealthComponent; } // <--- Getter for HealthComponent
+	UHealthComponent* GetHealthComponent() const { return HealthComponent; }
 
-	// --- Animation State Provider ---
 	virtual TScriptInterface<ICharacterAnimationStateListener> GetAnimStateListener_Implementation() const override;
 
-	// --- IDamageable Interface Implementation ---
-	virtual float ApplyDamage_Implementation(float DamageAmount, AActor* DamageCauser, AController* InstigatorController, const FHitResult& HitResult) override; // <--- IDamageable implementation declaration
+	virtual float ApplyDamage_Implementation(float DamageAmount, AActor* DamageCauser, AController* InstigatorController, const FHitResult& HitResult) override;
+
+	UFUNCTION(BlueprintPure, Category = "Movement | Configuration")
+	float GetCachedWalkSpeed() const { return CachedWalkSpeed; }
+	UFUNCTION(BlueprintPure, Category = "Movement | Configuration")
+	float GetCachedRunSpeed() const { return CachedRunSpeed; }
+
 
 protected:
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Character State", meta=(AllowPrivateAccess="true"))
-	bool bIsIncapacitated = false;
-    // --- Components ---
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UAfterimageComponent> AfterimageComponent;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
@@ -90,9 +96,8 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> Camera;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components | Health", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UHealthComponent> HealthComponent; // <--- HealthComponent member declaration
+	TObjectPtr<UHealthComponent> HealthComponent;
 
-	// --- Input Configuration ---
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputMappingContext> PlayerMappingContext;
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
@@ -102,23 +107,27 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> RunAction;
 
-    // --- Movement State ---
 	float CachedWalkSpeed = 200.f;
 	float CachedRunSpeed = 500.f;
-	bool bIsCanJump = false;
-	bool bIsWalking = false;
-	bool bIsRunning = false;
-    bool bMovementInputBlocked = false;
 
-	// --- Animation State Listener Cache ---
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Animation", meta=(AllowPrivateAccess = "true"))
 	TScriptInterface<ICharacterAnimationStateListener> AnimationStateListener;
 
-    // --- Lifecycle & Input Handling Functions ---
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "State Management", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UHeroStateBase> CurrentState;
+
+	UPROPERTY(Transient)
+	TMap<TSubclassOf<UHeroStateBase>, TObjectPtr<UHeroStateBase>> StateInstances;
+
+	UPROPERTY(EditDefaultsOnly, Category = "State Management")
+	TSubclassOf<UHeroStateBase> InitialStateClass;
+
+
 	virtual void BeginPlay() override;
-	virtual void EndPlay(EEndPlayReason::Type EndPlayReason) override;
+	virtual void Tick(float DeltaTime) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void NotifyControllerChanged() override;
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void SetupPlayerInputComponent( UInputComponent* PlayerInputComponent) override;
 	virtual void Landed(const FHitResult& Hit) override;
 	virtual void OnWalkingOffLedge_Implementation(const FVector& PreviousFloorImpactNormal,
 	                                              const FVector& PreviousFloorContactNormal,
@@ -131,25 +140,42 @@ protected:
 	void OnMoveTriggered(const FInputActionValue& Value);
 	void OnMoveCompleted(const FInputActionValue& Value);
 
-    // --- Initialization & Setup ---
-	void InitializeMovementParameters();
+	void InitializeStateMachine();
 	void SetupCamera();
 	void SetDirection(float Direction) const;
-    void ApplyMovementSettings();
+	void ApplyMovementSettings();
 	void CacheMovementSpeeds();
 
-    // --- Combat Delegate Handlers ---
 	UFUNCTION()
-	void HandleComboStarted();
+	void HandleDeath(AActor* Killer);
 	UFUNCTION()
-	void HandleComboEnded();
+	void HandleTakeHit(float CurrentHealthVal, float MaxHealthVal);
 
-    // --- Health Event Handlers ---
-	/** 处理生命值耗尽（死亡）事件 */
-	UFUNCTION() // UFUNCTION() is required for delegate binding
-	void HandleDeath(AActor* Killer); // <--- Declaration for death handler
+	template <typename StateType>
+	StateType* GetOrCreateStateInstance();
 
-	/** 处理受到伤害事件 (用于非动画反馈) */
-	UFUNCTION() // UFUNCTION() is required for delegate binding
-	void HandleTakeHit(float CurrentHealthVal, float MaxHealthVal); // <--- Declaration for hit handler
 };
+
+template <typename StateType>
+StateType* APaperZDCharacter_SpriteHero::GetOrCreateStateInstance()
+{
+	static_assert(TIsDerivedFrom<StateType, UHeroStateBase>::IsDerived, "StateType must be derived from UHeroStateBase");
+
+	TSubclassOf<UHeroStateBase> StateClass = StateType::StaticClass();
+
+	if (TObjectPtr<UHeroStateBase>* FoundState = StateInstances.Find(StateClass))
+	{
+		return Cast<StateType>(*FoundState);
+	}
+	else
+	{
+		StateType* NewState = NewObject<StateType>(this, StateClass);
+		if (NewState)
+		{
+			NewState->InitState(this);
+			StateInstances.Add(StateClass, NewState);
+			return NewState;
+		}
+	}
+	return nullptr;
+}

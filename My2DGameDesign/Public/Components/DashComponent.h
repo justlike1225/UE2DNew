@@ -40,7 +40,7 @@ public:
 	FOnDashStateChangedSignature OnDashStarted;
 	UPROPERTY(BlueprintAssignable, Category = "Dash|Events")
 	FOnDashEndedSignature OnDashEnded;
-
+	void PerformDash();
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Config")
 	TObjectPtr<UHeroDashSettingsDA> DashSettings;
@@ -48,7 +48,7 @@ protected:
 	UFUNCTION()
 	void HandleDashInputTriggered(const FInputActionValue& Value);
 
-	void PerformDash();
+	
 	UFUNCTION()
 	void EndDash();
 	UFUNCTION()

@@ -31,52 +31,35 @@ void UHeroPaperZDAnimInstance::OnInit_Implementation()
 // --- 修改 OnTakeHit_Implementation ---
 void UHeroPaperZDAnimInstance::OnTakeHit_Implementation(float DamageAmount, const FVector& HitDirection, bool bInterruptsCurrentAction)
 {
-	// 如果需要中断且角色未死亡，则直接跳转到受击状态
-	// 动画状态机本身会处理是否已经在 Hurt 状态（通常会阻止重复进入）
+	
 	if (bInterruptsCurrentAction && !bIsDead)
 	{
-		UE_LOG(LogTemp, Log, TEXT("HeroAnimInstance: OnTakeHit - Jumping to HeroHurt state."));
 		JumpToNode(AnimationJumpNodeName::HeroHurt); // 直接跳转
-		// 移除之前关于 bIsHurt 的检查和设置逻辑
 	}
-	else if (bIsDead)
-	{
-		UE_LOG(LogTemp, Verbose, TEXT("HeroAnimInstance: OnTakeHit ignored (Dead)."));
-	}
-	else if (!bInterruptsCurrentAction)
-	{
-		UE_LOG(LogTemp, Verbose, TEXT("HeroAnimInstance: OnTakeHit ignored (Interrupt not requested)."));
-	}
+	
 }
 
-// --- 修改 ExitHurtAnimStateEvent ---
 void UHeroPaperZDAnimInstance::ExitHurtAnimStateEvent()
 {
-
+	
 
 	// 直接尝试获取 Owning Actor 并调用其恢复函数
 	AActor* OwningActor = GetOwningActor();
 	if (APaperZDCharacter_SpriteHero* OwnerHero = Cast<APaperZDCharacter_SpriteHero>(OwningActor))
 	{
-		UE_LOG(LogTemp, Log, TEXT("HeroAnimInstance: Notifying character %s to recover from incapacitated state via ExitHurtAnimStateEvent."), *OwnerHero->GetName());
-		OwnerHero->NotifyHurtRecovery(); // <--- 通知角色恢复行动能力
+		OwnerHero->NotifyHurtRecovery();
+		
 	}
-	else if (OwningActor)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("HeroAnimInstance: Owning Actor %s is not APaperZDCharacter_SpriteHero, cannot notify hurt recovery."), *OwningActor->GetName());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("HeroAnimInstance: Could not get Owning Actor in ExitHurtAnimStateEvent."));
-	}
+
 }
 
 
 
 void UHeroPaperZDAnimInstance::OnIntentStateChanged_Implementation(bool bNewIsWalking, bool bNewIsRunning)
 {
-	// 只检查是否死亡。如果处于 Hurt 状态，动画状态机应阻止转换到 Walk/Run。
+	
 	if (bIsDead) return;
+	
 	this->bIsWalking = bNewIsWalking;
 	this->bIsRunning = bNewIsRunning;
 	UE_LOG(LogTemp, Verbose, TEXT("HeroAnimInstance: Intent state changed (Walk: %d, Run: %d)."), bNewIsWalking, bNewIsRunning);
@@ -103,7 +86,6 @@ void UHeroPaperZDAnimInstance::OnCombatStateChanged_Implementation(int32 NewComb
     // 只检查是否死亡。
 	if (bIsDead) return;
 	this->ComboCount = NewComboCount;
-	UE_LOG(LogTemp, Verbose, TEXT("HeroAnimInstance: Combat state changed (ComboCount: %d)."), NewComboCount);
 }
 
 void UHeroPaperZDAnimInstance::OnJumpRequested_Implementation()
