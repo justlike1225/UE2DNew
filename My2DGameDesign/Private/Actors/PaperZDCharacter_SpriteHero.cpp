@@ -1,4 +1,3 @@
-// 文件路径: My2DGameDesign/Private/Actors/PaperZDCharacter_SpriteHero.cpp
 
 #include "Actors/PaperZDCharacter_SpriteHero.h"
 #include "EnhancedInputSubsystems.h"
@@ -61,9 +60,10 @@ void APaperZDCharacter_SpriteHero::NotifyHurtRecovery()
 	if (bIsIncapacitated)
 	{
 		bIsIncapacitated = false;
-		UE_LOG(LogTemp, Log, TEXT("%s: Incapacitated state ended (Notified by AnimInstance)."), *GetNameSafe(this));
 	}
+	
 }
+
 
 
 // BeginPlay: 在游戏开始时执行初始化
@@ -351,22 +351,43 @@ void APaperZDCharacter_SpriteHero::OnWalkingOffLedge_Implementation(const FVecto
 
 // --- 输入动作处理函数 ---
 
-// 跳跃键按下
 void APaperZDCharacter_SpriteHero::OnJumpStarted(const FInputActionValue& Value)
 {
-	// --- 修改检查 ---
-	if (HealthComponent && HealthComponent->IsDead()) return;
-	if (bIsIncapacitated) return; // <--- 检查角色自身的硬直状态
-	// --- 修改结束 ---
+	// --- 检查是否可执行 ---
+	// 检查1: 是否死亡
+	if (HealthComponent && HealthComponent->IsDead())
+	{
+		return;
+	}
+	// 检查2: 是否处于硬直状态 (关键检查点)
+	if (bIsIncapacitated)
+	{
+		return;
+	}
+	// 检查3: 是否允许跳跃 (例如是否在地面或有二段跳能力)
+	
+	if (!bIsCanJump)
+	{
+		return;
+	}
 
-	if (!bIsCanJump) { return; }
+	// --- 执行跳跃 ---
+	// 标记为不再能跳跃（直到落地或获得二段跳）
 	bIsCanJump = false;
-	OnActionWillInterrupt.Broadcast(); // 广播中断事件 (例如打断攻击)
-	Jump();                      // 执行引擎跳跃
 
-	// 通知动画实例播放跳跃动画 (这部分不变)
+	// 广播中断事件 (例如，打断当前正在进行的攻击)
+	OnActionWillInterrupt.Broadcast();
+
+	
+	Jump();
+
+	// 通知动画实例播放跳跃动画
 	TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimStateListener_Implementation();
-	if (Listener) { Listener->Execute_OnJumpRequested(Listener.GetObject()); }
+	if (Listener)
+	{
+		Listener->Execute_OnJumpRequested(Listener.GetObject());
+	}
+
 }
 // 跳跃键松开
 void APaperZDCharacter_SpriteHero::OnJumpCompleted(const FInputActionValue& Value)
@@ -503,33 +524,56 @@ void APaperZDCharacter_SpriteHero::HandleComboEnded()
 }
 float APaperZDCharacter_SpriteHero::ApplyDamage_Implementation(float DamageAmount, AActor* DamageCauser, AController* InstigatorController, const FHitResult& HitResult)
 {
+	// 1. 检查 HealthComponent 是否有效以及角色是否已死亡 (保持不变)
 	if (!HealthComponent || HealthComponent->IsDead())
 	{
 		return 0.0f;
 	}
 
+	// 2. 应用伤害到 HealthComponent (保持不变)
 	float ActualDamage = HealthComponent->TakeDamage(DamageAmount, DamageCauser, InstigatorController);
 	UE_LOG(LogTemp, Log, TEXT("%s took %.1f actual damage from %s."), *GetNameSafe(this), ActualDamage, *GetNameSafe(DamageCauser));
 
+	// 3. 如果造成了实际伤害且角色未死亡，则处理受击状态
 	if (ActualDamage > 0.f && !HealthComponent->IsDead())
 	{
 		// --- 强化中断处理 ---
-		bool bShouldInterrupt = true; // 假设受击总是中断
+		bool bShouldInterrupt = true; // 假设受击总是中断 (可以根据需要添加更复杂的逻辑)
 		if (bShouldInterrupt)
 		{
 			UE_LOG(LogTemp, Log, TEXT("ApplyDamage: Interrupting action due to taking damage."));
 
-			// 1. 立即设置硬直状态
+			// 核心修改点 1: 设置唯一的硬直状态标志
 			bIsIncapacitated = true;
-			// 2. 立即解除移动锁定 (硬直优先级更高)
-			bMovementInputBlocked = false; // 直接设置，确保移动输入检查通过（虽然硬直本身会阻止移动）
+			UE_LOG(LogTemp, Log, TEXT("%s: Set bIsIncapacitated = true."), *GetNameSafe(this));
 
+			// 核心修改点 2: 确保移动输入检查可以通过，因为硬直状态会覆盖移动逻辑
+			// (如果之前的 HandleComboStarted 设置了 bMovementInputBlocked，这里需要解除)
+			// 注意：即使解除了这个Block，后续的移动输入处理函数中的 bIsIncapacitated 检查会阻止实际移动。
+			if (bMovementInputBlocked)
+			{
+				bMovementInputBlocked = false;
+				UE_LOG(LogTemp, Log, TEXT("%s: Cleared bMovementInputBlocked due to incapacitation."), *GetNameSafe(this));
+			}
+
+
+			// 核心修改点 3: 立即中断战斗组件的动作
+			// 直接调用 CombatComponent 的中断处理函数，比单纯依赖广播更可靠和即时。
 			if (CombatComponent)
 			{
-				
-				BroadcastActionInterrupt_Implementation(); // 确保这个调用能可靠地重置所有攻击状态
+				CombatComponent->HandleActionInterrupt(); // <--- 直接调用中断处理
+				UE_LOG(LogTemp, Log, TEXT("%s: Called CombatComponent->HandleActionInterrupt()."), *GetNameSafe(this));
+				// 如果还有其他组件需要监听中断事件，可以选择性地保留广播
+				// BroadcastActionInterrupt_Implementation();
 			}
-         
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("ApplyDamage: CombatComponent is null, cannot directly call HandleActionInterrupt."));
+				// 如果没有战斗组件，但仍希望广播给其他潜在监听者
+				// BroadcastActionInterrupt_Implementation();
+			}
+
+			// 核心修改点 4: 通知动画实例播放受击动画 (这部分逻辑不变，只是确保它在设置状态和中断动作之后)
 			TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimStateListener_Implementation();
 			if (Listener)
 			{
@@ -537,6 +581,7 @@ float APaperZDCharacter_SpriteHero::ApplyDamage_Implementation(float DamageAmoun
 				if (DamageCauser) { HitDirection = (GetActorLocation() - DamageCauser->GetActorLocation()).GetSafeNormal(); }
 				else if (HitResult.IsValidBlockingHit()) { HitDirection = -HitResult.ImpactNormal; }
 
+				// 调用接口，通知动画实例播放受击动画
 				Listener->Execute_OnTakeHit(Listener.GetObject(), ActualDamage, HitDirection, bShouldInterrupt);
 				UE_LOG(LogTemp, Verbose, TEXT("ApplyDamage: Notified Animation Listener OnTakeHit."));
 			}
@@ -546,7 +591,6 @@ float APaperZDCharacter_SpriteHero::ApplyDamage_Implementation(float DamageAmoun
 
 	return ActualDamage;
 }
-
 
 
 void APaperZDCharacter_SpriteHero::HandleDeath(AActor* Killer)
