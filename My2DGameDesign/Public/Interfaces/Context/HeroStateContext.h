@@ -51,9 +51,7 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Hero Context | Actions")
 	void PerformStopJumping(); // 停止跳跃
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Hero Context | Actions")
-	void InterruptAction(); // 停止跳跃
+	
    
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Hero Context | Actions")
 	void ApplyMovementInput(const FVector& WorldDirection, float ScaleValue); // 应用移动输入

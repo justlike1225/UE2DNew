@@ -181,6 +181,7 @@ void APaperZDCharacter_SpriteHero::OnJumpStarted(const FInputActionValue& Value)
 	if (CurrentState)
 	{
 		CurrentState->HandleJumpInputPressed();
+		OnActionWillInterrupt.Broadcast();
 	}
 }
 
@@ -309,6 +310,10 @@ FVector APaperZDCharacter_SpriteHero::GetFacingDirection_Implementation() const
 	return FVector::ForwardVector;
 }
 
+void APaperZDCharacter_SpriteHero::BroadcastActionInterrupt_Implementation()
+{
+	OnActionWillInterrupt.Broadcast();
+}
 
 
 TScriptInterface<ICharacterAnimationStateListener> APaperZDCharacter_SpriteHero::GetAnimStateListener_Implementation() const
@@ -520,10 +525,6 @@ void APaperZDCharacter_SpriteHero::RequestDash_Implementation()
 	}
 }
 
-void APaperZDCharacter_SpriteHero::InterruptAction_Implementation()
-{
-	OnActionWillInterrupt.Broadcast();
-}
 
 float APaperZDCharacter_SpriteHero::GetCachedWalkSpeed_Implementation() const
 {
