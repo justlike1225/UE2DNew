@@ -222,12 +222,7 @@ void UHeroCombatComponent::PerformGroundCombo()
 	if (bStartingNewCombo && OwnerCharacter.IsValid())
 	{
 		UCharacterMovementComponent* MoveComp = OwnerCharacter->GetCharacterMovement();
-		// 最好确保是在地面上开始的 Combo
-		if (MoveComp && MoveComp->IsMovingOnGround())
-		{
-			UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: Broadcasting OnGroundComboStarted."));
-			OnGroundComboStarted.Broadcast(); // <--- 广播开始事件
-		}
+		
 	}
 
 	if (ComboCount >= CurrentMaxGroundComboCount)
@@ -351,11 +346,6 @@ void UHeroCombatComponent::ResetComboState()
 	}
 
 
-	if (bWasInGroundCombo)
-	{
-		UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: Broadcasting OnGroundComboEnded due to ResetComboState."));
-		OnGroundComboEnded.Broadcast(); // 这个会通知 Actor 将 bMovementInputBlocked 设为 false
-	}
 
 	// --- 通知动画实例 ---
 	if (bStateChanged) // 只有在状态确实改变时才通知，避免冗余调用
@@ -569,8 +559,7 @@ void UHeroCombatComponent::NotifyLanded()
 }
 void UHeroCombatComponent::HandleActionInterrupt()
 {
-	UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: HandleActionInterrupt called."));
-	// 检查是否确实有需要中断的状态
+	
 	if (ComboCount > 0 || bIsPerformingAirAttack || ActiveAttackCollisionShape.IsValid() || GetWorld()->GetTimerManager().IsTimerActive(AttackCollisionTimer))
 	{
 		ResetComboState(); // 重置逻辑状态

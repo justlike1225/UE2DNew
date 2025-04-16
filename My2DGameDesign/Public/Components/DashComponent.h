@@ -41,12 +41,13 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Dash|Events")
 	FOnDashEndedSignature OnDashEnded;
 	void PerformDash();
+	UFUNCTION()
+	void HandleDashInputTriggered(const FInputActionValue& Value);
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Config")
 	TObjectPtr<UHeroDashSettingsDA> DashSettings;
 
-	UFUNCTION()
-	void HandleDashInputTriggered(const FInputActionValue& Value);
+
 
 	
 	UFUNCTION()

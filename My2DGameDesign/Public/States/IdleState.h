@@ -14,8 +14,7 @@ public:
 	virtual void OnEnterState_Implementation() override;
 	virtual void HandleMoveInput_Implementation(const FInputActionValue& Value) override;
 	virtual void HandleJumpInputPressed_Implementation() override;
-	virtual void HandleAttackInput_Implementation() override;
-	virtual void HandleDashInput_Implementation() override;
+
 	virtual void HandleWalkingOffLedge_Implementation() override;
 	
 };

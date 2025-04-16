@@ -1,4 +1,3 @@
-// 文件路径: My2DGameDesign/Public/Actors/PaperZDCharacter_SpriteHero.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -8,12 +7,12 @@
 #include "Interfaces/ActionInterruptSource.h"
 #include "Interfaces/AnimationListenerProvider/HeroAnimationStateProvider.h"
 #include "Interfaces/FacingDirectionProvider.h"
-#include "UObject/ScriptInterface.h"
 #include "Interfaces/Damageable.h"
+#include "Interfaces/Context/HeroStateContext.h"
 #include "Templates/SubclassOf.h"
+#include "UObject/ScriptInterface.h"
 #include "PaperZDCharacter_SpriteHero.generated.h"
 
-// --- 前向声明 ---
 class UHealthComponent;
 class UCharacterMovementSettingsDA;
 class UPaperZDAnimInstance;
@@ -39,7 +38,8 @@ class MY2DGAMEDESIGN_API APaperZDCharacter_SpriteHero : public APaperZDCharacter
                                                         public IActionInterruptSource,
                                                         public IHeroAnimationStateProvider,
                                                         public IGenericTeamAgentInterface,
-                                                        public IDamageable
+                                                        public IDamageable,
+                                                        public IHeroStateContext
 {
 	GENERATED_BODY()
 
@@ -73,18 +73,26 @@ public:
 	UAfterimageComponent* GetAfterimageComponent() const { return AfterimageComponent; }
 	UFUNCTION(BlueprintPure, Category = "Components")
 	UHeroCombatComponent* GetHeroCombatComponent() const { return CombatComponent; }
-	UFUNCTION(BlueprintPure, Category = "Components | Health")
-	UHealthComponent* GetHealthComponent() const { return HealthComponent; }
 
 	virtual TScriptInterface<ICharacterAnimationStateListener> GetAnimStateListener_Implementation() const override;
 
 	virtual float ApplyDamage_Implementation(float DamageAmount, AActor* DamageCauser, AController* InstigatorController, const FHitResult& HitResult) override;
 
-	UFUNCTION(BlueprintPure, Category = "Movement | Configuration")
-	float GetCachedWalkSpeed() const { return CachedWalkSpeed; }
-	UFUNCTION(BlueprintPure, Category = "Movement | Configuration")
-	float GetCachedRunSpeed() const { return CachedRunSpeed; }
+	
 
+	virtual UCharacterMovementComponent* GetMovementComponent_Implementation() const override;
+	virtual UHealthComponent* GetHealthComponent_Implementation() const override;
+	virtual void RequestStateChange_Implementation(TSubclassOf<UHeroStateBase> NewStateClass) override;
+	virtual void PerformJump_Implementation() override;
+	virtual void PerformStopJumping_Implementation() override;
+	virtual void ApplyMovementInput_Implementation(const FVector& WorldDirection, float ScaleValue) override;
+	virtual void RequestAttack_Implementation() override;
+	virtual void RequestDash_Implementation() override;
+	
+	
+	virtual float GetCachedWalkSpeed_Implementation() const override;
+	virtual float GetCachedRunSpeed_Implementation() const override;
+	virtual const AActor* GetOwningActor_Implementation() const override;
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
@@ -122,12 +130,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "State Management")
 	TSubclassOf<UHeroStateBase> InitialStateClass;
 
-
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void NotifyControllerChanged() override;
-	virtual void SetupPlayerInputComponent( UInputComponent* PlayerInputComponent) override;
+	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void Landed(const FHitResult& Hit) override;
 	virtual void OnWalkingOffLedge_Implementation(const FVector& PreviousFloorImpactNormal,
 	                                              const FVector& PreviousFloorContactNormal,
@@ -153,8 +160,8 @@ protected:
 
 	template <typename StateType>
 	StateType* GetOrCreateStateInstance();
-
 };
+
 
 template <typename StateType>
 StateType* APaperZDCharacter_SpriteHero::GetOrCreateStateInstance()
@@ -169,10 +176,11 @@ StateType* APaperZDCharacter_SpriteHero::GetOrCreateStateInstance()
 	}
 	else
 	{
-		StateType* NewState = NewObject<StateType>(this, StateClass);
+		StateType* NewState = NewObject<StateType>(this, StateClass); // Outer is still the character
 		if (NewState)
 		{
-			NewState->InitState(this);
+			// 将 'this' (实现了 IHeroStateContext 的角色实例) 传递给 InitState
+			NewState->InitState(this); // <--- 传递 this 作为 TScriptInterface<IHeroStateContext>
 			StateInstances.Add(StateClass, NewState);
 			return NewState;
 		}

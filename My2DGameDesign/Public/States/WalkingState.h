@@ -13,11 +13,8 @@ class MY2DGAMEDESIGN_API UWalkingState : public UHeroStateBase
 public:
 	virtual void OnEnterState_Implementation() override;
 	virtual void TickState_Implementation(float DeltaTime) override; // 需要Tick来检查是否停止
-
 	virtual void HandleMoveInput_Implementation(const FInputActionValue& Value) override;
 	virtual void HandleJumpInputPressed_Implementation() override;
-	virtual void HandleAttackInput_Implementation() override;
-	virtual void HandleDashInput_Implementation() override;
 	virtual void HandleRunInputPressed_Implementation() override;
 	virtual void HandleWalkingOffLedge_Implementation() override;
 	

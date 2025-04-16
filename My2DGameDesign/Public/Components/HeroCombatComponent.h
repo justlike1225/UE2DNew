@@ -22,9 +22,8 @@ template <class InterfaceType>
 class TScriptInterface;
 class UBoxComponent;
 class UCapsuleComponent; 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGroundComboStartedSignature);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGroundComboEndedSignature);
-// --- 用于 AnimNotify 识别攻击形状的常量名称 ---
+
+
 namespace AttackShapeNames
 {
 	const FName AttackHitBox(TEXT("AttackHitBox"));
@@ -42,13 +41,7 @@ public:
 	
 	void PerformGroundCombo();
 	void PerformAirAttack();
-	/** 当地面连击序列开始时广播 */
-	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
-	FOnGroundComboStartedSignature OnGroundComboStarted;
 
-	/** 当地面连击序列结束（完成、中断或重置）时广播 */
-	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
-	FOnGroundComboEndedSignature OnGroundComboEnded;
 	// --- 输入动作 ---
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> ComboAttackAction;
@@ -87,6 +80,8 @@ public:
 	void NotifyLanded();
 	UFUNCTION()
 	void HandleActionInterrupt();
+	UFUNCTION()
+	void HandleAttackInputTriggered(const FInputActionValue& Value);
 
 protected:
 	// --- 组件 ---
@@ -135,10 +130,7 @@ protected:
 	virtual void BeginPlay() override; // 仍然可以用来做一些BeginPlay特定的事
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	// --- 输入处理 (保持不变) ---
-	UFUNCTION()
-	void HandleAttackInputTriggered(const FInputActionValue& Value);
-
+	
 
 	void SpawnSwordBeam();
 

@@ -15,7 +15,6 @@ public:
 	virtual void TickState_Implementation(float DeltaTime) override; // Check for falling transition
 	virtual void HandleMoveInput_Implementation(const FInputActionValue& Value) override; // Air control
 	virtual void HandleJumpInputReleased_Implementation() override; // StopJumping
-	virtual void HandleAttackInput_Implementation() override;
-	virtual void HandleDashInput_Implementation() override;
+
 	virtual void HandleLanded_Implementation(const FHitResult& Hit) override; // Transition back to ground
 };

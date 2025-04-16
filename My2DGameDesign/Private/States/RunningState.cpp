@@ -1,41 +1,42 @@
-﻿// 文件: Private/States/RunningState.cpp
+﻿
 #include "States/RunningState.h"
-#include "Actors/PaperZDCharacter_SpriteHero.h"
+#include "Interfaces/Context/HeroStateContext.h" 
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interfaces/AnimationListener/CharacterAnimationStateListener.h"
-#include "Components/HeroCombatComponent.h"
-#include "Components/DashComponent.h"
+#include "GameFramework/Actor.h" 
 
-// Include headers for states this state can transition TO
+
 #include "States/IdleState.h"
 #include "States/WalkingState.h"
 #include "States/JumpingState.h"
 #include "States/FallingState.h"
-#include "States/AttackingState.h"
-#include "States/DashingState.h"
+   
 
 void URunningState::OnEnterState_Implementation()
 {
 	Super::OnEnterState_Implementation();
+	
 	if (MovementComponent.IsValid() && HeroContext)
 	{
-		MovementComponent->MaxWalkSpeed = HeroContext->GetCachedRunSpeed();
+		MovementComponent->MaxWalkSpeed = HeroContext->Execute_GetCachedRunSpeed(HeroContext.GetObject());
 	}
+    
     if(AnimListener)
     {
-        AnimListener->Execute_OnIntentStateChanged(AnimListener.GetObject(), true, true);
+        AnimListener->Execute_OnIntentStateChanged(AnimListener.GetObject(), true, true); 
     }
 }
 
 void URunningState::TickState_Implementation(float DeltaTime)
 {
 	Super::TickState_Implementation(DeltaTime);
+	
 	if (MovementComponent.IsValid())
     {
-        // Check if velocity magnitude is very small
-        if (MovementComponent->Velocity.SizeSquared2D() < FMath::Square(KINDA_SMALL_NUMBER))
+        if (MovementComponent->Velocity.Size() < FMath::Square(KINDA_SMALL_NUMBER))
         {
-		    TrySetState(UIdleState::StaticClass());
+            
+            if(HeroContext) HeroContext->Execute_RequestStateChange(HeroContext.GetObject(), UIdleState::StaticClass());
         }
     }
 }
@@ -44,23 +45,35 @@ void URunningState::HandleMoveInput_Implementation(const FInputActionValue& Valu
 {
     Super::HandleMoveInput_Implementation(Value);
 	const float MoveValue = Value.Get<float>();
-	if (FMath::Abs(MoveValue) < KINDA_SMALL_NUMBER)
+
+	if (HeroContext)
 	{
-        TrySetState(UIdleState::StaticClass());
-	}
-	else if (MovementComponent.IsValid() && HeroContext)
-	{
-		HeroContext->AddMovementInput(HeroContext->GetActorForwardVector(), MoveValue);
+		if (FMath::Abs(MoveValue) < KINDA_SMALL_NUMBER)
+		{
+            
+            HeroContext->Execute_RequestStateChange(HeroContext.GetObject(), UIdleState::StaticClass());
+		}
+		else if (MovementComponent.IsValid())
+		{
+            
+        const    AActor* Owner = HeroContext->Execute_GetOwningActor(HeroContext.GetObject());
+            if(Owner)
+            {
+			    HeroContext->Execute_ApplyMovementInput(HeroContext.GetObject(), Owner->GetActorForwardVector(), MoveValue);
+            }
+		}
 	}
 }
 
 void URunningState::HandleJumpInputPressed_Implementation()
 {
     Super::HandleJumpInputPressed_Implementation();
-	if (MovementComponent.IsValid() && MovementComponent->IsMovingOnGround() && HeroContext)
+	if (HeroContext && MovementComponent.IsValid() && MovementComponent->IsMovingOnGround())
 	{
-		HeroContext->Jump();
-		TrySetState(UJumpingState::StaticClass());
+        
+		HeroContext->Execute_PerformJump(HeroContext.GetObject());
+        
+		HeroContext->Execute_RequestStateChange(HeroContext.GetObject(), UJumpingState::StaticClass());
 		if (AnimListener)
 		{
 			AnimListener->Execute_OnJumpRequested(AnimListener.GetObject());
@@ -68,62 +81,30 @@ void URunningState::HandleJumpInputPressed_Implementation()
 	}
 }
 
-void URunningState::HandleAttackInput_Implementation()
-{
-    Super::HandleAttackInput_Implementation();
-	if (HeroContext)
-    {
-        UHeroCombatComponent* CombatComp = HeroContext->GetHeroCombatComponent();
-	    if (CombatComp && CombatComp->CanCombo())
-	    {
-		    CombatComp->PerformGroundCombo();
-		    TrySetState(UAttackingState::StaticClass());
-	    }
-    }
-}
 
-void URunningState::HandleDashInput_Implementation()
-{
-    Super::HandleDashInput_Implementation();
-	if (HeroContext)
-    {
-        UDashComponent* DashComp = HeroContext->GetDashComponent();
-	    if (DashComp && DashComp->CanDash())
-	    {
-		    DashComp->PerformDash();
-            TrySetState(UDashingState::StaticClass());
-	    }
-    }
-}
 
 void URunningState::HandleRunInputReleased_Implementation()
 {
     Super::HandleRunInputReleased_Implementation();
-    // If still moving, transition to Walking, otherwise Idle handled by Tick/MoveInput
-    if (MovementComponent.IsValid() && MovementComponent->Velocity.SizeSquared2D() > FMath::Square(KINDA_SMALL_NUMBER))
+    if (HeroContext)
     {
-	    TrySetState(UWalkingState::StaticClass());
-    }
-    else
-    {
-        TrySetState(UIdleState::StaticClass());
+        
+        if (MovementComponent.IsValid() && MovementComponent->Velocity.SizeSquared2D() > FMath::Square(KINDA_SMALL_NUMBER))
+        {
+            
+            HeroContext->Execute_RequestStateChange(HeroContext.GetObject(), UWalkingState::StaticClass());
+        }
+        else
+        {
+            
+            HeroContext->Execute_RequestStateChange(HeroContext.GetObject(), UIdleState::StaticClass());
+        }
     }
 }
 
 void URunningState::HandleWalkingOffLedge_Implementation()
 {
     Super::HandleWalkingOffLedge_Implementation();
-	TrySetState(UFallingState::StaticClass());
-}
-
-void URunningState::OnExitState_Implementation()
-{
-    Super::OnExitState_Implementation();
-    // Reset speed to walk speed when exiting run state, unless going to Dash/Attack maybe?
-    // Let the entering state handle setting the correct speed.
-     if(AnimListener)
-     {
-        // Reset intent, EnterState of next state will set correct one
-        // AnimListener->Execute_OnIntentStateChanged(AnimListener.GetObject(), false, false);
-     }
+    
+	if(HeroContext) HeroContext->Execute_RequestStateChange(HeroContext.GetObject(), UFallingState::StaticClass());
 }

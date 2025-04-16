@@ -1,55 +1,42 @@
-﻿// 文件: Public/States/HeroStateBase.h (你需要创建 States 目录和这个头文件)
+﻿// 文件: Public/States/HeroStateBase.h
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "InputActionValue.h" // 可能需要处理输入值
+#include "InputActionValue.h"
+#include "Interfaces/Context/HeroStateContext.h" // <--- 包含新的接口头文件
 #include "HeroStateBase.generated.h"
 
-// 前向声明
-class APaperZDCharacter_SpriteHero;
+// 前向声明 (保持不变)
+class APaperZDCharacter_SpriteHero; // 仍然可以保留，或者完全移除对具体类的依赖
 class UCharacterMovementComponent;
-class ICharacterAnimationStateListener; // 前向声明动画监听器接口
-template <class InterfaceType>
-class TScriptInterface; // 前向声明 TScriptInterface
+class ICharacterAnimationStateListener;
+template <class InterfaceType> class TScriptInterface;
+struct FHitResult; // <--- 添加 FHitResult 的前向声明
 
-/**
- * 英雄角色状态的抽象基类
- */
-UCLASS(Abstract, Blueprintable) // Abstract: 不能直接实例化; Blueprintable: 允许蓝图继承（可选）
+UCLASS(Abstract, Blueprintable)
 class MY2DGAMEDESIGN_API UHeroStateBase : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	// 初始化状态，传入所属英雄
-	virtual void InitState(APaperZDCharacter_SpriteHero* InHeroContext);
-	UFUNCTION(BlueprintNativeEvent, Category = "State Event Handling")
-	void HandleAttackEnd();
-	virtual void HandleAttackEnd_Implementation();
+	// 修改 InitState 参数类型
+	virtual void InitState(TScriptInterface<IHeroStateContext> InHeroContext); // <--- 修改参数类型
 
-	/** 处理冲刺结束事件 (通常由 DashComponent 触发) */
-	UFUNCTION(BlueprintNativeEvent, Category = "State Event Handling")
-	void HandleDashEnd();
-	virtual void HandleDashEnd_Implementation();
 	// --- 状态生命周期 ---
-
-	/** 当进入此状态时调用 */
 	UFUNCTION(BlueprintNativeEvent, Category = "State Lifecycle")
 	void OnEnterState();
-	virtual void OnEnterState_Implementation(); // C++ 默认实现
+	virtual void OnEnterState_Implementation();
 
-	/** 当退出此状态时调用 */
 	UFUNCTION(BlueprintNativeEvent, Category = "State Lifecycle")
 	void OnExitState();
-	virtual void OnExitState_Implementation(); // C++ 默认实现
+	virtual void OnExitState_Implementation();
 
-	/** 如果状态需要每帧更新，则调用 */
 	UFUNCTION(BlueprintNativeEvent, Category = "State Lifecycle")
 	void TickState(float DeltaTime);
 	virtual void TickState_Implementation(float DeltaTime);
 
-
+	// --- 输入处理 ---
 	UFUNCTION(BlueprintNativeEvent, Category = "State Input Handling")
 	void HandleMoveInput(const FInputActionValue& Value);
 	virtual void HandleMoveInput_Implementation(const FInputActionValue& Value);
@@ -78,50 +65,53 @@ public:
 	void HandleRunInputReleased();
 	virtual void HandleRunInputReleased_Implementation();
 
-
 	// --- 事件处理 ---
-
-	/** 处理着陆事件 */
 	UFUNCTION(BlueprintNativeEvent, Category = "State Event Handling")
 	void HandleLanded(const FHitResult& Hit);
 	virtual void HandleLanded_Implementation(const FHitResult& Hit);
 
-	/** 处理从边缘掉落事件 */
 	UFUNCTION(BlueprintNativeEvent, Category = "State Event Handling")
 	void HandleWalkingOffLedge();
 	virtual void HandleWalkingOffLedge_Implementation();
 
-	/** 处理受击事件 - 注意：这里可能只用于触发状态切换，具体伤害计算仍在Hero类 */
 	UFUNCTION(BlueprintNativeEvent, Category = "State Event Handling")
-	void HandleTakeDamage(); // 简化参数，状态只关心是否要切换到Hurt
+	void HandleTakeDamage();
 	virtual void HandleTakeDamage_Implementation();
 
-	/** 处理硬直恢复事件 */
 	UFUNCTION(BlueprintNativeEvent, Category = "State Event Handling")
 	void HandleHurtRecovery();
 	virtual void HandleHurtRecovery_Implementation();
-	
 
-	/** 处理死亡事件 */
 	UFUNCTION(BlueprintNativeEvent, Category = "State Event Handling")
 	void HandleDeath();
 	virtual void HandleDeath_Implementation();
 
+	// --- 状态结束事件 (由 AnimNotify 或组件回调触发) ---
+	UFUNCTION(BlueprintNativeEvent, Category = "State Event Handling")
+	void HandleAttackEnd(); // 由 CombatComponent 通过 AnimNotify -> Character -> State 调用
+	virtual void HandleAttackEnd_Implementation();
 
-	/** 尝试切换到新状态 */
-	UFUNCTION(BlueprintCallable, Category = "State Management")
-	virtual void TrySetState(TSubclassOf<UHeroStateBase> NewStateClass);
+	UFUNCTION(BlueprintNativeEvent, Category = "State Event Handling")
+	void HandleDashEnd(); // 由 DashComponent 通过 Delegate -> Character -> State 调用
+	virtual void HandleDashEnd_Implementation();
+
+	/** 尝试切换到新状态 (内部使用，通过接口调用) */
+	virtual void TrySetState(TSubclassOf<UHeroStateBase> NewStateClass); // <--- 保持 virtual，但实现会改变
 
 protected:
-	// 指向拥有此状态的英雄角色 (上下文)
+	// 指向拥有此状态的上下文 (通过接口)
 	UPROPERTY(BlueprintReadOnly, Category = "State Context")
-	TObjectPtr<APaperZDCharacter_SpriteHero> HeroContext;
+	TScriptInterface<IHeroStateContext> HeroContext; // <--- 修改类型
 
-	// 方便访问移动组件 (在 InitState 中设置)
+	// 方便访问移动组件 (在 InitState 中通过接口获取)
 	UPROPERTY(BlueprintReadOnly, Category = "State Context")
-	TWeakObjectPtr<UCharacterMovementComponent> MovementComponent; // 使用弱指针更安全
+	TWeakObjectPtr<UCharacterMovementComponent> MovementComponent;
 
-	// 方便访问动画监听器 (在 InitState 中设置)
+	// 方便访问动画监听器 (在 InitState 中通过接口获取)
 	UPROPERTY(BlueprintReadOnly, Category = "State Context")
 	TScriptInterface<ICharacterAnimationStateListener> AnimListener;
+
+    // 方便访问生命组件 (在 InitState 中通过接口获取)
+	UPROPERTY(BlueprintReadOnly, Category = "State Context")
+	TWeakObjectPtr<UHealthComponent> HealthComponent; // <--- 添加
 };
