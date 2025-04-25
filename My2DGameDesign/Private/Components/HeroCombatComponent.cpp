@@ -1,7 +1,7 @@
 #include "Components/HeroCombatComponent.h"
 #include "EnhancedInputComponent.h"
 #include "PaperZDCharacter.h"
-
+#include "Actors/PaperZDCharacter_SpriteHero.h"
 #include "PaperFlipbookComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -10,11 +10,9 @@
 #include "DataAssets/HeroDA/HeroCombatSettingsDA.h"
 #include "GameFramework/DamageType.h"
 #include "TimerManager.h"
-#include "Actors/PaperZDCharacter_SpriteHero.h"
 #include "Actors/SwordBeamProjectile.h"
 #include "GameFramework/PlayerController.h"
 #include "Interfaces/Damageable.h"
-#include "Interfaces/AnimationListenerProvider/HeroAnimationStateProvider.h"
 #include "Utils/CombatGameplayStatics.h"
 
 UHeroCombatComponent::UHeroCombatComponent()
@@ -200,6 +198,10 @@ void UHeroCombatComponent::HandleAttackInputTriggered(const FInputActionValue& V
 		{
 			return;
 		}
+		if (AttackCooldownTimer.IsValid())
+		{
+			return;
+		}
 
 		PerformGroundCombo();
 	}
@@ -222,7 +224,12 @@ void UHeroCombatComponent::PerformGroundCombo()
 	if (bStartingNewCombo && OwnerCharacter.IsValid())
 	{
 		UCharacterMovementComponent* MoveComp = OwnerCharacter->GetCharacterMovement();
-		
+	
+		if (MoveComp && MoveComp->IsMovingOnGround())
+		{
+			
+			OnGroundComboStarted.Broadcast(); // <--- 广播开始事件
+		}
 	}
 
 	if (ComboCount >= CurrentMaxGroundComboCount)
@@ -342,10 +349,15 @@ void UHeroCombatComponent::ResetComboState()
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(ResetComboTimer);
-	
+		GetWorld()->GetTimerManager().ClearTimer(AttackCooldownTimer);
 	}
 
 
+	if (bWasInGroundCombo)
+	{
+		UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: Broadcasting OnGroundComboEnded due to ResetComboState."));
+		OnGroundComboEnded.Broadcast(); // 这个会通知 Actor 将 bMovementInputBlocked 设为 false
+	}
 
 	// --- 通知动画实例 ---
 	if (bStateChanged) // 只有在状态确实改变时才通知，避免冗余调用
@@ -559,7 +571,8 @@ void UHeroCombatComponent::NotifyLanded()
 }
 void UHeroCombatComponent::HandleActionInterrupt()
 {
-	
+	UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: HandleActionInterrupt called."));
+	// 检查是否确实有需要中断的状态
 	if (ComboCount > 0 || bIsPerformingAirAttack || ActiveAttackCollisionShape.IsValid() || GetWorld()->GetTimerManager().IsTimerActive(AttackCollisionTimer))
 	{
 		ResetComboState(); // 重置逻辑状态

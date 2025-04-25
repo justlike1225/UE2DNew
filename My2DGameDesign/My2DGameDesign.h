@@ -8,6 +8,7 @@ namespace AnimationJumpNodeName
 {
 	const FName Jump = TEXT("Jump"); 
 	const FName Dash = TEXT("Dash"); 
+	const FName HeroFalling = TEXT("HeroFalling"); 
 
 
 	const FName HeroHurt = TEXT("HeroHurt");

@@ -36,6 +36,9 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Animation State Listener")
 	void OnAirAttackStateChanged(bool bNewIsAirAttacking);
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Animation State Listener")
+	void OnFallingRequested();
+
 	
 	/**
 	 * @brief 当角色受到伤害时调用。

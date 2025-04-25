@@ -122,6 +122,11 @@ void UHeroPaperZDAnimInstance::OnAirAttackStateChanged_Implementation(bool bNewI
 	UE_LOG(LogTemp, Verbose, TEXT("HeroAnimInstance: Air attack state changed (IsAirAttacking: %d)."), bNewIsAirAttacking);
 }
 
+void UHeroPaperZDAnimInstance::OnFallingRequested_Implementation()
+{
+	JumpToNode(AnimationJumpNodeName::HeroFalling);
+}
+
 // --- OnDeathState_Implementation ---
 void UHeroPaperZDAnimInstance::OnDeathState_Implementation(AActor* Killer)
 {
