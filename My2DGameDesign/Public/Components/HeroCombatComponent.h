@@ -82,6 +82,8 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Combat|State")
 	void NotifyLanded();
+	UFUNCTION()
+	void HandleActionInterrupt();
 
 protected:
 	// --- 组件 ---
@@ -152,9 +154,6 @@ protected:
 	void OnAttackHit(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	                 int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
-	// --- 中断处理 ---
-	UFUNCTION()
-	void HandleActionInterrupt();
 
 private:
 	// --- 辅助函数 ---
