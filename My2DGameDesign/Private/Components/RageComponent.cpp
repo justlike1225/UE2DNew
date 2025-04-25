@@ -14,7 +14,7 @@ void URageComponent::BeginPlay()
 
 	
 	MaxRage = FMath::Max(0.1f, MaxRage); 
-	CurrentRage = 0.0f;
+	CurrentRage =100.0f;
 
 	
 	OnRageChanged.Broadcast(CurrentRage, MaxRage);

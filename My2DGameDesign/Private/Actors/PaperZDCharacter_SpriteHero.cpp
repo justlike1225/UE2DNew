@@ -9,12 +9,16 @@
 #include "Camera/CameraComponent.h"
 #include "Components/DashComponent.h"
 #include "Components/AfterimageComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/HeroCombatComponent.h"
 #include "Components/HealthComponent.h"
+#include "Components/RageComponent.h"
 #include "Interfaces/InputBindingComponent.h"
 #include "Interfaces/AnimationListener/CharacterAnimationStateListener.h"
 #include "DataAssets/CharacterMovementSettingsDA.h"
+#include "DataAssets/HeroDA/HeroRageDashSkillSettingsDA.h"
 #include "Engine/Engine.h"
+#include "Utils/CombatGameplayStatics.h"
 
 
 APaperZDCharacter_SpriteHero::APaperZDCharacter_SpriteHero()
@@ -26,7 +30,7 @@ APaperZDCharacter_SpriteHero::APaperZDCharacter_SpriteHero()
 	DashComponent = CreateDefaultSubobject<UDashComponent>(TEXT("DashComponent"));
 	CombatComponent = CreateDefaultSubobject<UHeroCombatComponent>(TEXT("CombatComponent"));
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-
+	RageComponent = CreateDefaultSubobject<URageComponent>(TEXT("RageComponent"));
 
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 
@@ -75,22 +79,7 @@ void APaperZDCharacter_SpriteHero::BeginPlay()
 		if (BaseAnimInstance)
 		{
 			AnimationStateListener = TScriptInterface<ICharacterAnimationStateListener>(BaseAnimInstance);
-			if (!AnimationStateListener)
-			{
-				UE_LOG(LogTemp, Warning,
-				       TEXT("BeginPlay: AnimInstance on %s does not implement ICharacterAnimationStateListener!"),
-				       *GetNameSafe(this));
-			}
 		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("BeginPlay: Could not get AnimInstance from AnimationComponent on %s."),
-			       *GetNameSafe(this));
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("BeginPlay: Could not get AnimationComponent on %s."), *GetNameSafe(this));
 	}
 
 
@@ -121,7 +110,6 @@ void APaperZDCharacter_SpriteHero::BeginPlay()
 		CombatComponent->OnGroundComboEnded.AddDynamic(this, &APaperZDCharacter_SpriteHero::HandleComboEnded);
 		UE_LOG(LogTemp, Log, TEXT("SpriteHero: Bound to CombatComponent delegates."));
 	}
-	else { UE_LOG(LogTemp, Warning, TEXT("SpriteHero: CombatComponent is NULL in BeginPlay, cannot bind delegates.")); }
 
 
 	if (HealthComponent)
@@ -130,8 +118,10 @@ void APaperZDCharacter_SpriteHero::BeginPlay()
 		HealthComponent->OnHealthChanged.AddDynamic(this, &APaperZDCharacter_SpriteHero::HandleTakeHit);
 		UE_LOG(LogTemp, Log, TEXT("SpriteHero: Bound to HealthComponent delegates."));
 	}
-	else { UE_LOG(LogTemp, Error, TEXT("SpriteHero: HealthComponent is NULL in BeginPlay, cannot bind delegates!")); }
-
+	if (UCapsuleComponent* MainCapsule = GetCapsuleComponent())
+	{
+		MainCapsule->OnComponentBeginOverlap.AddDynamic(this, &APaperZDCharacter_SpriteHero::OnRageDashHit);
+	}
 
 	bMovementInputBlocked = false;
 }
@@ -207,6 +197,122 @@ void APaperZDCharacter_SpriteHero::CacheMovementSpeeds()
 			MoveComp->MaxWalkSpeed = CachedWalkSpeed;
 		}
 	}
+}
+
+bool APaperZDCharacter_SpriteHero::CanExecuteRageDash() const
+{
+	if (!RageDashSkillSettings || !RageComponent || !GetCharacterMovement())
+	{
+		return false;
+	}
+	if (bIsRageDashing || bIsRageDashOnCooldown || bIsIncapacitated || (HealthComponent && HealthComponent->IsDead()))
+	{
+		
+		return false;
+	}
+	if (RageComponent->GetCurrentRage() < RageDashSkillSettings->RageCost)
+	{
+		
+		return false;
+	}
+
+
+	return true;
+}
+
+void APaperZDCharacter_SpriteHero::TryExecuteRageDash()
+{
+	if (CanExecuteRageDash())
+	{
+		ExecuteRageDash();
+	}
+
+}
+
+void APaperZDCharacter_SpriteHero::ExecuteRageDash()
+{
+	if (!ensure(RageDashSkillSettings && RageComponent && GetCharacterMovement() && AnimationStateListener)) return;
+
+
+	RageComponent->ConsumeRage(RageDashSkillSettings->RageCost);
+
+
+	bIsRageDashing = true;
+	bIsRageDashOnCooldown = true;
+	GetWorldTimerManager().SetTimer(RageDashCooldownTimer, this,
+	                                &APaperZDCharacter_SpriteHero::OnRageDashCooldownFinished,
+	                                RageDashSkillSettings->Cooldown, false);
+
+
+	BroadcastActionInterrupt_Implementation();
+
+
+	AnimationStateListener->Execute_OnRageDashStarted(AnimationStateListener.GetObject());
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
+	                                 TEXT("Rage Dash started!"));
+
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	OriginalMovementSpeed = MoveComp->MaxWalkSpeed;
+	OriginalGravity = MoveComp->GravityScale;
+	MoveComp->StopMovementKeepPathing();
+	MoveComp->GravityScale = 0.0f;
+
+	FVector DashDirection = GetFacingDirection_Implementation().GetSafeNormal();
+
+	LaunchCharacter(DashDirection * RageDashSkillSettings->DashSpeed, true, true);
+
+
+	HitActorsThisDash.Empty();
+
+
+	if (UCapsuleComponent* MainCapsule = GetCapsuleComponent())
+	{
+		MainCapsule->SetGenerateOverlapEvents(true);
+	}
+
+
+	GetWorldTimerManager().SetTimer(RageDashMovementTimer, this, &APaperZDCharacter_SpriteHero::EndRageDashMovement,
+	                                RageDashSkillSettings->DashDuration, false);
+}
+
+void APaperZDCharacter_SpriteHero::EndRageDashMovement()
+{
+	if (!bIsRageDashing) return;
+
+
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	if (MoveComp)
+	{
+		MoveComp->Velocity = FVector::ZeroVector;
+		MoveComp->GravityScale = OriginalGravity;
+	}
+
+
+	bIsRageDashing = false;
+}
+
+void APaperZDCharacter_SpriteHero::OnRageDashCooldownFinished()
+{
+	bIsRageDashOnCooldown = false;
+}
+
+void APaperZDCharacter_SpriteHero::CancelRageDash()
+{
+	if (!bIsRageDashing) return;
+
+
+	GetWorldTimerManager().ClearTimer(RageDashMovementTimer);
+
+
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	if (MoveComp)
+	{
+		MoveComp->StopMovementKeepPathing();
+		MoveComp->GravityScale = OriginalGravity;
+	}
+
+
+	bIsRageDashing = false;
 }
 
 
@@ -342,6 +448,11 @@ void APaperZDCharacter_SpriteHero::SetupPlayerInputComponent(UInputComponent* Pl
 			EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this,
 			                          &APaperZDCharacter_SpriteHero::OnMoveCompleted);
 		}
+		if (RageDashAction)
+		{
+			EnhancedInput->BindAction(RageDashAction, ETriggerEvent::Started, this,
+			                          &APaperZDCharacter_SpriteHero::HandleRageDashInputTriggered);
+		}
 
 
 		TArray<UActorComponent*> Components;
@@ -471,6 +582,11 @@ void APaperZDCharacter_SpriteHero::OnMoveCompleted(const FInputActionValue& Valu
 	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement()) { MoveComp->MaxWalkSpeed = CachedWalkSpeed; }
 }
 
+void APaperZDCharacter_SpriteHero::HandleRageDashInputTriggered(const FInputActionValue& Value)
+{
+	TryExecuteRageDash();
+}
+
 void APaperZDCharacter_SpriteHero::OnRunTriggered(const FInputActionValue& Value)
 {
 	if (HealthComponent && HealthComponent->IsDead()) return;
@@ -542,18 +658,22 @@ void APaperZDCharacter_SpriteHero::EndPlay(const EEndPlayReason::Type EndPlayRea
 {
 	if (CombatComponent)
 	{
-		if (CombatComponent->OnGroundComboStarted.IsBound()) CombatComponent->OnGroundComboStarted.RemoveDynamic(
-			this, &APaperZDCharacter_SpriteHero::HandleComboStarted);
-		if (CombatComponent->OnGroundComboEnded.IsBound()) CombatComponent->OnGroundComboEnded.RemoveDynamic(
-			this, &APaperZDCharacter_SpriteHero::HandleComboEnded);
+		if (CombatComponent->OnGroundComboStarted.IsBound())
+			CombatComponent->OnGroundComboStarted.RemoveDynamic(
+				this, &APaperZDCharacter_SpriteHero::HandleComboStarted);
+		if (CombatComponent->OnGroundComboEnded.IsBound())
+			CombatComponent->OnGroundComboEnded.RemoveDynamic(
+				this, &APaperZDCharacter_SpriteHero::HandleComboEnded);
 	}
 
 	if (HealthComponent)
 	{
-		if (HealthComponent->OnDeath.IsBound()) HealthComponent->OnDeath.RemoveDynamic(
-			this, &APaperZDCharacter_SpriteHero::HandleDeath);
-		if (HealthComponent->OnHealthChanged.IsBound()) HealthComponent->OnHealthChanged.RemoveDynamic(
-			this, &APaperZDCharacter_SpriteHero::HandleTakeHit);
+		if (HealthComponent->OnDeath.IsBound())
+			HealthComponent->OnDeath.RemoveDynamic(
+				this, &APaperZDCharacter_SpriteHero::HandleDeath);
+		if (HealthComponent->OnHealthChanged.IsBound())
+			HealthComponent->OnHealthChanged.RemoveDynamic(
+				this, &APaperZDCharacter_SpriteHero::HandleTakeHit);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -580,8 +700,6 @@ float APaperZDCharacter_SpriteHero::ApplyDamage_Implementation(float DamageAmoun
 
 
 	float ActualDamage = HealthComponent->TakeDamage(DamageAmount, DamageCauser, InstigatorController);
-	UE_LOG(LogTemp, Log, TEXT("%s took %.1f actual damage from %s."), *GetNameSafe(this), ActualDamage,
-	       *GetNameSafe(DamageCauser));
 
 
 	if (ActualDamage > 0.f && !HealthComponent->IsDead())
@@ -589,30 +707,20 @@ float APaperZDCharacter_SpriteHero::ApplyDamage_Implementation(float DamageAmoun
 		bool bShouldInterrupt = true;
 		if (bShouldInterrupt)
 		{
-			UE_LOG(LogTemp, Log, TEXT("ApplyDamage: Interrupting action due to taking damage."));
-
-
 			bIsIncapacitated = true;
-			UE_LOG(LogTemp, Log, TEXT("%s: Set bIsIncapacitated = true."), *GetNameSafe(this));
 
 
 			if (bMovementInputBlocked)
 			{
 				bMovementInputBlocked = false;
-				UE_LOG(LogTemp, Log, TEXT("%s: Cleared bMovementInputBlocked due to incapacitation."),
-				       *GetNameSafe(this));
 			}
-
-
 			if (CombatComponent)
 			{
 				CombatComponent->HandleActionInterrupt();
-				UE_LOG(LogTemp, Log, TEXT("%s: Called CombatComponent->HandleActionInterrupt()."), *GetNameSafe(this));
 			}
-			else
+			if (bIsRageDashing)
 			{
-				UE_LOG(LogTemp, Warning,
-				       TEXT("ApplyDamage: CombatComponent is null, cannot directly call HandleActionInterrupt."));
+				CancelRageDash();
 			}
 
 
@@ -628,17 +736,41 @@ float APaperZDCharacter_SpriteHero::ApplyDamage_Implementation(float DamageAmoun
 
 
 				Listener->Execute_OnTakeHit(Listener.GetObject(), ActualDamage, HitDirection, bShouldInterrupt);
-				UE_LOG(LogTemp, Verbose, TEXT("ApplyDamage: Notified Animation Listener OnTakeHit."));
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning,
-				       TEXT("ApplyDamage: Could not get CharacterAnimationStateListener to notify OnTakeHit."));
 			}
 		}
 	}
 
 	return ActualDamage;
+}
+
+void APaperZDCharacter_SpriteHero::OnRageDashHit(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+                                                 UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
+                                                 const FHitResult& SweepResult)
+{
+	if (!bIsRageDashing || !OtherActor || OtherActor == this || !RageDashSkillSettings)
+	{
+		return;
+	}
+
+
+	if (HitActorsThisDash.Contains(OtherActor))
+	{
+		return;
+	}
+
+
+	if (UCombatGameplayStatics::CanDamageActor(this, OtherActor))
+	{
+		if (OtherActor->GetClass()->ImplementsInterface(UDamageable::StaticClass()))
+		{
+			HitActorsThisDash.Add(OtherActor);
+
+
+			float DamageToApply = RageDashSkillSettings->DamageAmount;
+			AController* MyController = GetController();
+			IDamageable::Execute_ApplyDamage(OtherActor, DamageToApply, this, MyController, SweepResult);
+		}
+	}
 }
 
 
@@ -679,10 +811,4 @@ void APaperZDCharacter_SpriteHero::HandleDeath(AActor* Killer)
 
 void APaperZDCharacter_SpriteHero::HandleTakeHit(float CurrentHealthVal, float MaxHealthVal)
 {
-	if (GEngine)
-	{
-		if (CurrentHealthVal < MaxHealthVal && HealthComponent && !HealthComponent->IsDead())
-		{
-		}
-	}
 }

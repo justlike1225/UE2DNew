@@ -18,7 +18,8 @@ public:
 	/**动画状态机：退出受伤状态节点自动调用该事件 */
 	UFUNCTION(BlueprintCallable, Category = "Animation State Events")
 	void ExitHurtAnimStateEvent();
-
+	UFUNCTION(BlueprintCallable, Category = "Animation State Events")
+	void ExitRageDashAnimStateEvent();
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character State|Movement",
 		meta = (AllowPrivateAccess = "true"))
@@ -51,7 +52,8 @@ protected:
 		meta = (AllowPrivateAccess = "true"))
 	bool bIsAirAttacking = false;
 
-
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character State|Skills", meta = (AllowPrivateAccess = "true"))
+	bool bIsRageDashing = false; 
 	/** 标记角色是否已经死亡 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character State|State",
 		meta = (AllowPrivateAccess = "true"))
@@ -60,7 +62,7 @@ protected:
 
 	UPROPERTY()
 	TWeakObjectPtr<UCharacterMovementComponent> MovementComponentPtr;
-
+	virtual void OnRageDashStarted_Implementation() override;
 	virtual void OnInit_Implementation() override;
 	virtual void OnTick_Implementation(float DeltaTime) override;
 	virtual void OnIntentStateChanged_Implementation(bool bNewIsWalking, bool bNewIsRunning) override;
@@ -74,3 +76,5 @@ protected:
 	                                      bool bInterruptsCurrentAction) override;
 	virtual void OnDeathState_Implementation(AActor* Killer) override;
 };
+
+

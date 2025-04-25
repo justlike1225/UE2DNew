@@ -40,6 +40,8 @@ public:
 	void OnFallingRequested();
 
 	
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Animation State Listener | Skills")
+	void OnRageDashStarted(); 
 	/**
 	 * @brief 当角色受到伤害时调用。
 	 * @param DamageAmount 受到的伤害量。
