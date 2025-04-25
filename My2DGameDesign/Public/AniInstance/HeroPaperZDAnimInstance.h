@@ -16,7 +16,9 @@ class MY2DGAMEDESIGN_API UHeroPaperZDAnimInstance
 
 public: 
 	
-	
+	/** 标记角色是否处于受击状态 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character State|State", meta = (AllowPrivateAccess = "true"))
+	bool bIsHurt = false;
 	/**动画状态机：退出受伤状态节点自动调用该事件 */
 	UFUNCTION(BlueprintCallable, Category = "Animation State Events")
 	void ExitHurtAnimStateEvent();

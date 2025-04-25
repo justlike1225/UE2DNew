@@ -20,10 +20,11 @@ class UEnhancedInputComponent;
 class ICharacterAnimationStateListener;
 template <class InterfaceType>
 class TScriptInterface;
-class UBoxComponent;
-class UCapsuleComponent; 
-
-
+class UBoxComponent; // <-- 添加 BoxComponent 前向声明
+class UCapsuleComponent; // <-- 添加 CapsuleComponent 前向声明
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGroundComboStartedSignature);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGroundComboEndedSignature);
+// --- 用于 AnimNotify 识别攻击形状的常量名称 ---
 namespace AttackShapeNames
 {
 	const FName AttackHitBox(TEXT("AttackHitBox"));
@@ -38,10 +39,13 @@ class MY2DGAMEDESIGN_API UHeroCombatComponent : public UActorComponent, public I
 
 public:
 	UHeroCombatComponent();
-	
-	void PerformGroundCombo();
-	void PerformAirAttack();
+	/** 当地面连击序列开始时广播 */
+	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
+	FOnGroundComboStartedSignature OnGroundComboStarted;
 
+	/** 当地面连击序列结束（完成、中断或重置）时广播 */
+	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
+	FOnGroundComboEndedSignature OnGroundComboEnded;
 	// --- 输入动作 ---
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> ComboAttackAction;
@@ -78,10 +82,6 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Combat|State")
 	void NotifyLanded();
-	UFUNCTION()
-	void HandleActionInterrupt();
-	UFUNCTION()
-	void HandleAttackInputTriggered(const FInputActionValue& Value);
 
 protected:
 	// --- 组件 ---
@@ -130,8 +130,13 @@ protected:
 	virtual void BeginPlay() override; // 仍然可以用来做一些BeginPlay特定的事
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	
+	// --- 输入处理 (保持不变) ---
+	UFUNCTION()
+	void HandleAttackInputTriggered(const FInputActionValue& Value);
 
+	// --- 核心逻辑 (保持不变) ---
+	void PerformGroundCombo();
+	void PerformAirAttack();
 	void SpawnSwordBeam();
 
 	// --- 状态重置与冷却 (保持不变) ---
@@ -147,6 +152,9 @@ protected:
 	void OnAttackHit(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	                 int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
+	// --- 中断处理 ---
+	UFUNCTION()
+	void HandleActionInterrupt();
 
 private:
 	// --- 辅助函数 ---
@@ -177,6 +185,4 @@ private:
 	// 记录当前由 AnimNotify 激活的碰撞体，以便 Deactivate
 	UPROPERTY()
 	TWeakObjectPtr<UPrimitiveComponent> ActiveAttackCollisionShape;
-
-	
 };
