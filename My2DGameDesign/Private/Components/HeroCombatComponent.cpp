@@ -419,55 +419,79 @@ void UHeroCombatComponent::PerformSweepTraceTick()
 		StopSweepTrace();
 		return;
 	}
+
 	APaperZDCharacter_SpriteHero* Hero = Cast<APaperZDCharacter_SpriteHero>(GetOwner());
-	UPaperFlipbookComponent* SpriteComp = Hero ? Hero->GetSprite() : nullptr;
-	UWorld* World = GetWorld();
-	if (!Hero || !SpriteComp || !World)
+	if (!Hero)
 	{
 		StopSweepTrace();
 		return;
 	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		StopSweepTrace();
+		return;
+	}
+
+	UPaperFlipbookComponent* SpriteComp = Hero->GetSprite();
+	if (!SpriteComp)
+	{
+		StopSweepTrace();
+		return;
+	}
+
 	float CurrentWorldTime = World->GetTimeSeconds();
 	float ElapsedTime = CurrentWorldTime - AttackTraceStartTime;
+
 	if (ElapsedTime >= AttackTraceDuration)
 	{
 		StopSweepTrace();
 		return;
 	}
+
 	float NormalizedTime = FMath::Clamp(ElapsedTime / AttackTraceDuration, 0.0f, 1.0f);
-	FVector CurrentRelativeOffset = GetInterpolatedOffset(NormalizedTime);
+
+	// 1. 计算当前位置（不依赖SpriteComp的Transform）
 	FVector FacingDirection = IFacingDirectionProvider::Execute_GetFacingDirection(Hero);
+	FVector CurrentRelativeOffset = GetInterpolatedOffset(NormalizedTime);
+
 	if (FacingDirection.X < 0.0f)
 	{
 		CurrentRelativeOffset.X *= -1.0f;
 	}
-	FTransform ComponentTransform = SpriteComp->GetComponentTransform();
-	FVector CurrentWorldLocation = ComponentTransform.TransformPosition(CurrentRelativeOffset);
+
+	FVector ActorLocation = Hero->GetActorLocation();
+	FVector CurrentWorldLocation = ActorLocation + CurrentRelativeOffset;
+
+	// 2. 进行Sphere Trace
 	FVector StartTrace = PreviousAttackPointWorldLocation;
 	FVector EndTrace = CurrentWorldLocation;
+
 	if (!StartTrace.Equals(EndTrace, 0.1f))
 	{
 		TArray<FHitResult> HitResults;
-		TArray<AActor*> ActorsToIgnore;
-		ActorsToIgnore.Add(Hero);
-		TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-		ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-		float CurrentTraceRadius = 10.0f;
+		TArray<AActor*> ActorsToIgnore = { Hero };
+		TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes = { UEngineTypes::ConvertToObjectType(ECC_Pawn) };
+
+		const float TraceRadius = 10.0f;
+
 		bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
-		World,                          
-		StartTrace,                     
-		EndTrace,                       
-		10,         
-		ObjectTypes,                    
-		false,                          
-		ActorsToIgnore,                 
-		EDrawDebugTrace::ForDuration,   
-		HitResults,                     
-		true,                           
-		FLinearColor::Red,              
-		FLinearColor::Green,            
-		0.1f                            
-	);
+			World,
+			StartTrace,
+			EndTrace,
+			TraceRadius,
+			ObjectTypes,
+			false,
+			ActorsToIgnore,
+			EDrawDebugTrace::ForDuration,
+			HitResults,
+			true,
+			FLinearColor::Red,
+			FLinearColor::Green,
+			0.1f
+		);
+
 		if (bHit)
 		{
 			for (const FHitResult& Hit : HitResults)
@@ -480,14 +504,24 @@ void UHeroCombatComponent::PerformSweepTraceTick()
 						if (IDamageable* DamageableTarget = Cast<IDamageable>(HitActor))
 						{
 							HitActorsThisSweep.Add(HitActor);
+
 							float DamageToApply = 0.f;
 							const UHeroUpwardSweepSettingsDA* SweepSettings = Hero->GetUpwardSweepSettings();
-							if (SweepSettings) DamageToApply = SweepSettings->Damage;
+							if (SweepSettings)
+							{
+								DamageToApply = SweepSettings->Damage;
+							}
+
 							if (DamageToApply > 0.f)
 							{
 								AController* InstigatorController = Hero->GetController();
-								IDamageable::Execute_ApplyDamage(HitActor, DamageToApply, Hero, InstigatorController,
-								                                 Hit);
+								IDamageable::Execute_ApplyDamage(
+									HitActor,
+									DamageToApply,
+									Hero,
+									InstigatorController,
+									Hit
+								);
 							}
 						}
 					}
@@ -495,8 +529,10 @@ void UHeroCombatComponent::PerformSweepTraceTick()
 			}
 		}
 	}
+
 	PreviousAttackPointWorldLocation = CurrentWorldLocation;
 }
+
 void UHeroCombatComponent::StopSweepTrace()
 {
 	if (bIsTrackingAttackPoint)
