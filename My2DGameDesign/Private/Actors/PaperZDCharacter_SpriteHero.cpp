@@ -75,6 +75,8 @@ const UHeroUpwardSweepSettingsDA* APaperZDCharacter_SpriteHero::GetUpwardSweepSe
 }
 
 
+
+
 void APaperZDCharacter_SpriteHero::BeginPlay()
 {
 	Super::BeginPlay();
@@ -931,16 +933,14 @@ void APaperZDCharacter_SpriteHero::FinishUpwardSweep()
 {
 	if (!bIsPerformingUpwardSweep)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
-		                       TEXT("FinishUpwardSweep: Not currently performing Upward Sweep!"));
+		
 		return;
 	}
 
 
 	bIsPerformingUpwardSweep = false;
 	bMovementInputBlocked = false;
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
-	                       TEXT("FinishUpwardSweep: Upward Sweep finished!"));
+
 }
 
 void APaperZDCharacter_SpriteHero::OnUpwardSweepCooldownFinished()

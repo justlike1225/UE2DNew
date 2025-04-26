@@ -11,8 +11,10 @@
 #include "GameFramework/DamageType.h"
 #include "TimerManager.h"
 #include "Actors/SwordBeamProjectile.h"
+#include "DataAssets/HeroDA/HeroUpwardSweepSettingsDA.h"
 #include "GameFramework/PlayerController.h"
 #include "Interfaces/Damageable.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Utils/CombatGameplayStatics.h"
 UHeroCombatComponent::UHeroCombatComponent()
 {
@@ -199,7 +201,7 @@ void UHeroCombatComponent::PerformGroundCombo()
 		UCharacterMovementComponent* MoveComp = OwnerCharacter->GetCharacterMovement();
 		if (MoveComp && MoveComp->IsMovingOnGround())
 		{
-			OnGroundComboStarted.Broadcast(); 
+			OnGroundComboStarted.Broadcast();
 		}
 	}
 	if (ComboCount >= CurrentMaxGroundComboCount)
@@ -294,9 +296,9 @@ void UHeroCombatComponent::ResetComboState()
 {
 	bool bWasInGroundCombo = (ComboCount > 0 && !bIsPerformingAirAttack);
 	bool bWasAirAttacking = bIsPerformingAirAttack;
-	bool bStateChanged = (ComboCount != 0 || bIsPerformingAirAttack); 
+	bool bStateChanged = (ComboCount != 0 || bIsPerformingAirAttack);
 	ComboCount = 0;
-	bCanCombo = true; 
+	bCanCombo = true;
 	bIsPerformingAirAttack = false;
 	if (GetWorld())
 	{
@@ -306,15 +308,15 @@ void UHeroCombatComponent::ResetComboState()
 	if (bWasInGroundCombo)
 	{
 		UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: Broadcasting OnGroundComboEnded due to ResetComboState."));
-		OnGroundComboEnded.Broadcast(); 
+		OnGroundComboEnded.Broadcast();
 	}
-	if (bStateChanged) 
+	if (bStateChanged)
 	{
 		TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimListener();
 		if (Listener)
 		{
 			Listener->Execute_OnCombatStateChanged(Listener.GetObject(), ComboCount);
-			if (bWasAirAttacking) 
+			if (bWasAirAttacking)
 			{
 				Listener->Execute_OnAirAttackStateChanged(Listener.GetObject(), false);
 			}
@@ -330,46 +332,54 @@ void UHeroCombatComponent::OnAttackHit(
 		return;
 	}
 	float DamageToApply = 0.0f;
-	FName HitCompTag = OverlappedComponent->ComponentTags.IsValidIndex(0) ? OverlappedComponent->ComponentTags[0] : NAME_None;
+	FName HitCompTag = OverlappedComponent->ComponentTags.IsValidIndex(0)
+		                   ? OverlappedComponent->ComponentTags[0]
+		                   : NAME_None;
 	if (HitCompTag != AttackShapeNames::AttackHitBox &&
 		HitCompTag != AttackShapeNames::AttackHitCapsule &&
 		HitCompTag != AttackShapeNames::ThrustAttackCapsule)
 	{
-		return; 
+		return;
 	}
 	if (bIsPerformingAirAttack)
 	{
-		if (HitCompTag == AttackShapeNames::AttackHitCapsule) 
+		if (HitCompTag == AttackShapeNames::AttackHitCapsule)
 		{
 			DamageToApply = CurrentAirAttackMeleeDamage;
-			UE_LOG(LogTemp, Log, TEXT("Hero Air Attack Hit %s with %s (Damage: %.1f)"), *OtherActor->GetName(), *HitCompTag.ToString(), DamageToApply);
+			UE_LOG(LogTemp, Log, TEXT("Hero Air Attack Hit %s with %s (Damage: %.1f)"), *OtherActor->GetName(),
+			       *HitCompTag.ToString(), DamageToApply);
 		}
 	}
-	else 
+	else
 	{
-		DamageToApply = CurrentGroundBaseAttackDamage; 
-		UE_LOG(LogTemp, Log, TEXT("Hero Ground Attack Hit %s with %s (Damage: %.1f)"), *OtherActor->GetName(), *HitCompTag.ToString(), DamageToApply);
+		DamageToApply = CurrentGroundBaseAttackDamage;
+		UE_LOG(LogTemp, Log, TEXT("Hero Ground Attack Hit %s with %s (Damage: %.1f)"), *OtherActor->GetName(),
+		       *HitCompTag.ToString(), DamageToApply);
 	}
 	if (DamageToApply > 0)
 	{
 		AActor* Attacker = OwnerCharacter.Get();
 		if (!UCombatGameplayStatics::CanDamageActor(Attacker, OtherActor))
 		{
-			return; 
+			return;
 		}
 		if (OtherActor->GetClass()->ImplementsInterface(UDamageable::StaticClass()))
 		{
 			AController* DamageInstigatorController = nullptr;
-			if (APawn* OwnerPawn = Cast<APawn>(OwnerCharacter.Get())) 
+			if (APawn* OwnerPawn = Cast<APawn>(OwnerCharacter.Get()))
 			{
-				DamageInstigatorController = OwnerPawn->GetController(); 
+				DamageInstigatorController = OwnerPawn->GetController();
 			}
-			IDamageable::Execute_ApplyDamage(OtherActor, DamageToApply, OwnerCharacter.Get(), DamageInstigatorController, SweepResult);
-			UE_LOG(LogTemp, Log, TEXT("Applied damage %.1f to %s via IDamageable interface."), DamageToApply, *OtherActor->GetName());
+			IDamageable::Execute_ApplyDamage(OtherActor, DamageToApply, OwnerCharacter.Get(),
+			                                 DamageInstigatorController, SweepResult);
+			UE_LOG(LogTemp, Log, TEXT("Applied damage %.1f to %s via IDamageable interface."), DamageToApply,
+			       *OtherActor->GetName());
 		}
 		else
 		{
-			UE_LOG(LogTemp, Log, TEXT("Actor %s does not implement IDamageable. No damage applied by HeroCombatComponent."), *OtherActor->GetName());
+			UE_LOG(LogTemp, Log,
+			       TEXT("Actor %s does not implement IDamageable. No damage applied by HeroCombatComponent."),
+			       *OtherActor->GetName());
 		}
 	}
 }
@@ -402,6 +412,130 @@ void UHeroCombatComponent::CloseComboWindowAndSetupResetTimer()
 		}
 	}
 }
+void UHeroCombatComponent::PerformSweepTraceTick()
+{
+	if (!bIsTrackingAttackPoint)
+	{
+		StopSweepTrace();
+		return;
+	}
+	APaperZDCharacter_SpriteHero* Hero = Cast<APaperZDCharacter_SpriteHero>(GetOwner());
+	UPaperFlipbookComponent* SpriteComp = Hero ? Hero->GetSprite() : nullptr;
+	UWorld* World = GetWorld();
+	if (!Hero || !SpriteComp || !World)
+	{
+		StopSweepTrace();
+		return;
+	}
+	float CurrentWorldTime = World->GetTimeSeconds();
+	float ElapsedTime = CurrentWorldTime - AttackTraceStartTime;
+	if (ElapsedTime >= AttackTraceDuration)
+	{
+		StopSweepTrace();
+		return;
+	}
+	float NormalizedTime = FMath::Clamp(ElapsedTime / AttackTraceDuration, 0.0f, 1.0f);
+	FVector CurrentRelativeOffset = GetInterpolatedOffset(NormalizedTime);
+	FVector FacingDirection = IFacingDirectionProvider::Execute_GetFacingDirection(Hero);
+	if (FacingDirection.X < 0.0f)
+	{
+		CurrentRelativeOffset.X *= -1.0f;
+	}
+	FTransform ComponentTransform = SpriteComp->GetComponentTransform();
+	FVector CurrentWorldLocation = ComponentTransform.TransformPosition(CurrentRelativeOffset);
+	FVector StartTrace = PreviousAttackPointWorldLocation;
+	FVector EndTrace = CurrentWorldLocation;
+	if (!StartTrace.Equals(EndTrace, 0.1f))
+	{
+		TArray<FHitResult> HitResults;
+		TArray<AActor*> ActorsToIgnore;
+		ActorsToIgnore.Add(Hero);
+		TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+		ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
+		float CurrentTraceRadius = 10.0f;
+		bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
+		World,                          
+		StartTrace,                     
+		EndTrace,                       
+		10,         
+		ObjectTypes,                    
+		false,                          
+		ActorsToIgnore,                 
+		EDrawDebugTrace::ForDuration,   
+		HitResults,                     
+		true,                           
+		FLinearColor::Red,              
+		FLinearColor::Green,            
+		0.1f                            
+	);
+		if (bHit)
+		{
+			for (const FHitResult& Hit : HitResults)
+			{
+				AActor* HitActor = Hit.GetActor();
+				if (HitActor && !HitActorsThisSweep.Contains(HitActor))
+				{
+					if (UCombatGameplayStatics::CanDamageActor(Hero, HitActor))
+					{
+						if (IDamageable* DamageableTarget = Cast<IDamageable>(HitActor))
+						{
+							HitActorsThisSweep.Add(HitActor);
+							float DamageToApply = 0.f;
+							const UHeroUpwardSweepSettingsDA* SweepSettings = Hero->GetUpwardSweepSettings();
+							if (SweepSettings) DamageToApply = SweepSettings->Damage;
+							if (DamageToApply > 0.f)
+							{
+								AController* InstigatorController = Hero->GetController();
+								IDamageable::Execute_ApplyDamage(HitActor, DamageToApply, Hero, InstigatorController,
+								                                 Hit);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	PreviousAttackPointWorldLocation = CurrentWorldLocation;
+}
+void UHeroCombatComponent::StopSweepTrace()
+{
+	if (bIsTrackingAttackPoint)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(AttackTraceTimerHandle);
+		bIsTrackingAttackPoint = false;
+	}
+}
+void UHeroCombatComponent::StartSweepTrace(float Duration)
+{
+	APaperZDCharacter_SpriteHero* Hero = Cast<APaperZDCharacter_SpriteHero>(GetOwner());
+	UPaperFlipbookComponent* SpriteComp = Hero ? Hero->GetSprite() : nullptr;
+	UWorld* World = GetWorld();
+	if (!Hero || !SpriteComp || !World || Duration <= KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+	bIsTrackingAttackPoint = true;
+	HitActorsThisSweep.Empty();
+	AttackTraceStartTime = World->GetTimeSeconds();
+	AttackTraceDuration = Duration;
+	FVector InitialRelativeOffset = GetInterpolatedOffset(0.0f);
+	FVector FacingDirection = IFacingDirectionProvider::Execute_GetFacingDirection(Hero);
+	if (FacingDirection.X < 0.0f)
+	{
+		InitialRelativeOffset.X *= -1.0f;
+	}
+	FTransform ComponentTransform = SpriteComp->GetComponentTransform();
+	PreviousAttackPointWorldLocation = ComponentTransform.TransformPosition(InitialRelativeOffset);
+	const float TimerTickInterval = 0.0166f;
+	GetWorld()->GetTimerManager().SetTimer(
+		AttackTraceTimerHandle,
+		this,
+		&UHeroCombatComponent::PerformSweepTraceTick,
+		TimerTickInterval,
+		true,
+		0.0f
+	);
+}
 void UHeroCombatComponent::HandleAnimNotify_SpawnSwordBeam()
 {
 	SpawnSwordBeam();
@@ -413,6 +547,49 @@ void UHeroCombatComponent::HandleAnimNotify_AirAttackEnd()
 		bIsPerformingAirAttack = false;
 		TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimListener();
 		if (Listener) { Listener->Execute_OnAirAttackStateChanged(Listener.GetObject(), false); }
+	}
+}
+FVector UHeroCombatComponent::GetInterpolatedOffset(float NormalizedTime) const
+{
+	int32 NumKeys = UpwardSweepKeyframeTimes.Num();
+	if (UpwardSweepKeyframeOffsets.Num() != NumKeys || NumKeys < 2)
+	{
+		UE_LOG(LogTemp, Warning,
+		       TEXT("UHeroCombatComponent::GetInterpolatedOffset - Invalid keyframe data (Count mismatch or < 2 keys)."
+		       ));
+		return UpwardSweepKeyframeOffsets.IsValidIndex(0) ? UpwardSweepKeyframeOffsets[0] : FVector::ZeroVector;
+	}
+	NormalizedTime = FMath::Clamp(NormalizedTime, 0.0f, 1.0f);
+	int32 IndexB = -1;
+	for (int32 i = 0; i < NumKeys; ++i)
+	{
+		if (UpwardSweepKeyframeTimes[i] >= NormalizedTime)
+		{
+			IndexB = i;
+			break;
+		}
+	}
+	if (IndexB <= 0)
+	{
+		return UpwardSweepKeyframeOffsets[0];
+	}
+	else if (IndexB >= NumKeys)
+	{
+		return UpwardSweepKeyframeOffsets.Last();
+	}
+	else
+	{
+		int32 IndexA = IndexB - 1;
+		float TimeA = UpwardSweepKeyframeTimes[IndexA];
+		float TimeB = UpwardSweepKeyframeTimes[IndexB];
+		FVector OffsetA = UpwardSweepKeyframeOffsets[IndexA];
+		FVector OffsetB = UpwardSweepKeyframeOffsets[IndexB];
+		if (FMath::IsNearlyEqual(TimeA, TimeB))
+		{
+			return OffsetA;
+		}
+		float Alpha = (NormalizedTime - TimeA) / (TimeB - TimeA);
+		return FMath::Lerp<FVector>(OffsetA, OffsetB, Alpha);
 	}
 }
 void UHeroCombatComponent::ActivateAttackCollision(FName ShapeIdentifier, float Duration)
@@ -486,9 +663,10 @@ void UHeroCombatComponent::NotifyLanded()
 void UHeroCombatComponent::HandleActionInterrupt()
 {
 	UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: HandleActionInterrupt called."));
-	if (ComboCount > 0 || bIsPerformingAirAttack || ActiveAttackCollisionShape.IsValid() || GetWorld()->GetTimerManager().IsTimerActive(AttackCollisionTimer))
+	if (ComboCount > 0 || bIsPerformingAirAttack || ActiveAttackCollisionShape.IsValid() || GetWorld()->
+		GetTimerManager().IsTimerActive(AttackCollisionTimer))
 	{
-		ResetComboState(); 
-		DeactivateCurrentAttackCollision(); 
+		ResetComboState();
+		DeactivateCurrentAttackCollision();
 	}
 }

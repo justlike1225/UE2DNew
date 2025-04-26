@@ -12,8 +12,7 @@ void UFinishUpwardSweepNotify::OnReceiveNotify_Implementation(UPaperZDAnimInstan
 	{
 		// 调用 Hero 身上用于结束技能状态的函数
 		Hero->FinishUpwardSweep();
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
-			TEXT("Finish Upward Sweep Notify Triggered!"));
+	
 	}
 
 }
