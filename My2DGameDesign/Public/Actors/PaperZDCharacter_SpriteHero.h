@@ -57,7 +57,7 @@ public:
 	bool IsWalking() const { return bIsWalking; }
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	bool IsRunning() const { return bIsRunning; }
-
+	void ExecuteRageDashMovement();
 	
 	UPROPERTY(BlueprintAssignable, Category = "Character|Events")
 	FOnActionInterruptSignature OnActionWillInterrupt;
@@ -122,8 +122,8 @@ protected:
 	bool bIsRageDashOnCooldown = false;
 	FTimerHandle RageDashMovementTimer;
 	FTimerHandle RageDashCooldownTimer;
-	float OriginalMovementSpeed = 0.f; // 用于存储原始速度
-	float OriginalGravity = 1.f;    // 用于存储原始重力
+	float OriginalMovementSpeed = 0.f; 
+	float OriginalGravity = 1.f;    
 	
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Animation", meta=(AllowPrivateAccess = "true"))
 	TScriptInterface<ICharacterAnimationStateListener> AnimationStateListener;
@@ -152,13 +152,14 @@ protected:
 	void SetDirection(float Direction) const;
     void ApplyMovementSettings();
 	void CacheMovementSpeeds();
-	// --- Skill Logic ---
-	bool CanExecuteRageDash() const; // <--- 新增检查函数
-	void TryExecuteRageDash();      // <--- 新增触发函数
-	void ExecuteRageDash();         // <--- 新增核心逻辑函数
-	void EndRageDashMovement();     // <--- 新增结束移动处理函数
-	void OnRageDashCooldownFinished();// <--- 新增冷却结束处理函数
-	void CancelRageDash();          // <--- 为后续中断处理添加
+	
+	bool CanExecuteRageDash() const; 
+	void TryExecuteRageDash();      
+	void ExecuteRageDash();         
+	
+	void EndRageDashMovement();     
+	void OnRageDashCooldownFinished();
+	void CancelRageDash();          
     
 	UFUNCTION()
 	void HandleComboStarted();
