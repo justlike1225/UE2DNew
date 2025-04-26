@@ -201,21 +201,25 @@ void APaperZDCharacter_SpriteHero::CacheMovementSpeeds()
 
 bool APaperZDCharacter_SpriteHero::CanExecuteRageDash() const
 {
-	if (!RageDashSkillSettings || !RageComponent || !GetCharacterMovement())
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	if (!RageDashSkillSettings || !RageComponent || !MoveComp)
 	{
 		return false;
 	}
+
+	if (!MoveComp->IsMovingOnGround())
+	{
+		return false;
+	}
+
 	if (bIsRageDashing || bIsRageDashOnCooldown || bIsIncapacitated || (HealthComponent && HealthComponent->IsDead()))
 	{
-		
 		return false;
 	}
 	if (RageComponent->GetCurrentRage() < RageDashSkillSettings->RageCost)
 	{
-		
 		return false;
 	}
-
 
 	return true;
 }
@@ -226,70 +230,67 @@ void APaperZDCharacter_SpriteHero::TryExecuteRageDash()
 	{
 		ExecuteRageDash();
 	}
-
 }
 
 void APaperZDCharacter_SpriteHero::ExecuteRageDash()
 {
-    if (!ensure(RageDashSkillSettings && RageComponent && GetCharacterMovement() && AnimationStateListener)) return;
+	if (!ensure(RageDashSkillSettings && RageComponent && GetCharacterMovement() && AnimationStateListener)) return;
 
-    // 保留: 消耗怒气
-    RageComponent->ConsumeRage(RageDashSkillSettings->RageCost);
+	// 保留: 消耗怒气
+	RageComponent->ConsumeRage(RageDashSkillSettings->RageCost);
+	bMovementInputBlocked = true;
+	// 保留: 设置状态和冷却
+	bIsRageDashing = true;
+	bIsRageDashOnCooldown = true;
+	GetWorldTimerManager().SetTimer(RageDashCooldownTimer, this,
+	                                &APaperZDCharacter_SpriteHero::OnRageDashCooldownFinished,
+	                                RageDashSkillSettings->Cooldown, false);
 
-    // 保留: 设置状态和冷却
-    bIsRageDashing = true;
-    bIsRageDashOnCooldown = true;
-    GetWorldTimerManager().SetTimer(RageDashCooldownTimer, this,
-                                    &APaperZDCharacter_SpriteHero::OnRageDashCooldownFinished,
-                                    RageDashSkillSettings->Cooldown, false);
+	// 保留: 广播中断
+	BroadcastActionInterrupt_Implementation();
 
-    // 保留: 广播中断
-    BroadcastActionInterrupt_Implementation();
+	// 保留: 通知动画开始
+	AnimationStateListener->Execute_OnRageDashStarted(AnimationStateListener.GetObject());
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
+	                                 TEXT("Rage Dash started! (Charge Phase)")); // 修改提示
 
-    // 保留: 通知动画开始
-    AnimationStateListener->Execute_OnRageDashStarted(AnimationStateListener.GetObject());
-    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
-                                    TEXT("Rage Dash started! (Charge Phase)")); // 修改提示
-
-    // 保留: 获取移动组件和停止当前移动（防止蓄力时滑动）
-    UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-    // 保留: 缓存原始速度和重力
-    OriginalMovementSpeed = MoveComp->MaxWalkSpeed;
-    OriginalGravity = MoveComp->GravityScale;
-    MoveComp->StopMovementKeepPathing();
-
-
+	// 保留: 获取移动组件和停止当前移动（防止蓄力时滑动）
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	// 保留: 缓存原始速度和重力
+	OriginalMovementSpeed = MoveComp->MaxWalkSpeed;
+	OriginalGravity = MoveComp->GravityScale;
+	MoveComp->StopMovementKeepPathing();
 }
 
 
 void APaperZDCharacter_SpriteHero::ExecuteRageDashMovement()
 {
-    // 检查状态，确保是在RageDash期间被动画通知调用
-    if (!bIsRageDashing || !RageDashSkillSettings || !GetCharacterMovement()) return;
+	// 检查状态，确保是在RageDash期间被动画通知调用
+	if (!bIsRageDashing || !RageDashSkillSettings || !GetCharacterMovement()) return;
 
-    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, TEXT("Rage Dash Movement Triggered by AnimNotify!"));
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, TEXT("Rage Dash Movement Triggered by AnimNotify!"));
 
-    UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
 
-    // 设置无重力
-    MoveComp->GravityScale = 0.0f;
+	// 设置无重力
+	MoveComp->GravityScale = 0.0f;
 
-    // 计算方向并施加冲量
-    FVector DashDirection = GetFacingDirection_Implementation().GetSafeNormal();
-    LaunchCharacter(DashDirection * RageDashSkillSettings->DashSpeed, true, true);
+	// 计算方向并施加冲量
+	FVector DashDirection = GetFacingDirection_Implementation().GetSafeNormal();
+	LaunchCharacter(DashDirection * RageDashSkillSettings->DashSpeed, true, true);
 
-    // 清空本次冲刺已击中列表
-    HitActorsThisDash.Empty();
+	// 清空本次冲刺已击中列表
+	HitActorsThisDash.Empty();
 
-    // 启用碰撞检测（用于 OnRageDashHit）
-    if (UCapsuleComponent* MainCapsule = GetCapsuleComponent())
-    {
-        MainCapsule->SetGenerateOverlapEvents(true);
-    }
+	// 启用碰撞检测（用于 OnRageDashHit）
+	if (UCapsuleComponent* MainCapsule = GetCapsuleComponent())
+	{
+		MainCapsule->SetGenerateOverlapEvents(true);
+	}
 
-    // 启动冲刺移动的结束计时器
-    GetWorldTimerManager().SetTimer(RageDashMovementTimer, this, &APaperZDCharacter_SpriteHero::EndRageDashMovement,
-                                   RageDashSkillSettings->DashDuration, false);
+	// 启动冲刺移动的结束计时器
+	GetWorldTimerManager().SetTimer(RageDashMovementTimer, this, &APaperZDCharacter_SpriteHero::EndRageDashMovement,
+	                                RageDashSkillSettings->DashDuration, false);
 }
 
 
@@ -305,7 +306,7 @@ void APaperZDCharacter_SpriteHero::EndRageDashMovement()
 		MoveComp->GravityScale = OriginalGravity;
 	}
 
-
+	bMovementInputBlocked = false;
 	bIsRageDashing = false;
 }
 
@@ -328,7 +329,7 @@ void APaperZDCharacter_SpriteHero::CancelRageDash()
 		MoveComp->StopMovementKeepPathing();
 		MoveComp->GravityScale = OriginalGravity;
 	}
-
+	bMovementInputBlocked = false;
 
 	bIsRageDashing = false;
 }
@@ -531,7 +532,10 @@ void APaperZDCharacter_SpriteHero::OnJumpStarted(const FInputActionValue& Value)
 	{
 		return;
 	}
-
+	if (bMovementInputBlocked)
+	{
+		return; // 如果输入被阻止，则不执行跳跃
+	}
 
 	if (!bIsCanJump)
 	{

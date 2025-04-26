@@ -43,7 +43,8 @@ class MY2DGAMEDESIGN_API APaperZDCharacter_SpriteHero : public APaperZDCharacter
 public:
 	APaperZDCharacter_SpriteHero();
 	void NotifyHurtRecovery();
-	
+	UFUNCTION(BlueprintPure, Category="Character State")
+	bool IsMovementInputBlocked() const { return bMovementInputBlocked; }
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Team")
 	FGenericTeamId TeamId = FGenericTeamId(0);
 	virtual FGenericTeamId GetGenericTeamId() const override { return TeamId; }

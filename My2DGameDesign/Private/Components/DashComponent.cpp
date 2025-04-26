@@ -6,6 +6,7 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "EnhancedInputComponent.h"
+#include "Actors/PaperZDCharacter_SpriteHero.h"
 #include "Interfaces/ActionInterruptSource.h"
 #include "Interfaces/AnimationListenerProvider/HeroAnimationStateProvider.h"
 #include "Interfaces/AnimationListener//CharacterAnimationStateListener.h"
@@ -76,6 +77,12 @@ void UDashComponent::HandleDashInputTriggered(const FInputActionValue& Value)
 
 void UDashComponent::ExecuteDashLogic()
 {
+	APaperZDCharacter_SpriteHero* OwnerHero = Cast<APaperZDCharacter_SpriteHero>(OwnerCharacter.Get());
+	
+	if (OwnerHero && OwnerHero->IsMovementInputBlocked())
+	{
+		return; 
+	}
 	if (!CanDash())
 	{
 		return;
