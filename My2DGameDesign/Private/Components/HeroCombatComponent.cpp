@@ -14,7 +14,6 @@
 #include "GameFramework/PlayerController.h"
 #include "Interfaces/Damageable.h"
 #include "Utils/CombatGameplayStatics.h"
-
 UHeroCombatComponent::UHeroCombatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -23,43 +22,34 @@ UHeroCombatComponent::UHeroCombatComponent()
 	bIsPerformingAirAttack = false;
 	bCanAirAttack = true;
 	bWantsInitializeComponent = true;
-
 	AttackHitBox = CreateDefaultSubobject<UBoxComponent>(TEXT("AttackHitbox"));
 	if (AttackHitBox)
 	{
 		AttackHitBox->ComponentTags.Add(AttackShapeNames::AttackHitBox);
 	}
-
 	AttackHitCapsule = CreateDefaultSubobject<UCapsuleComponent>(TEXT("AttackHitCapsule"));
 	if (AttackHitCapsule)
 	{
 		AttackHitCapsule->ComponentTags.Add(AttackShapeNames::AttackHitCapsule);
 	}
-
 	ThrustAttackCapsule = CreateDefaultSubobject<UCapsuleComponent>(TEXT("ThrustAttackCapsule"));
 	if (ThrustAttackCapsule)
 	{
 		ThrustAttackCapsule->ComponentTags.Add(AttackShapeNames::ThrustAttackCapsule);
 	}
 }
-
 void UHeroCombatComponent::InitializeComponent()
 {
 	Super::InitializeComponent();
-
 	OwnerCharacter = Cast<APaperZDCharacter>(GetOwner());
-
 	if (OwnerCharacter.IsValid())
 	{
 		OwnerSpriteComponent = OwnerCharacter->GetSprite();
-
 		if (APaperZDCharacter_SpriteHero* OwnerHero = Cast<APaperZDCharacter_SpriteHero>(OwnerCharacter.Get()))
 		{
 			OwnerHero->OnActionWillInterrupt.AddDynamic(this, &UHeroCombatComponent::HandleActionInterrupt);
 		}
-
 		FAttachmentTransformRules AttachmentRules(EAttachmentRule::KeepRelative, true);
-
 		if (AttackHitBox)
 		{
 			AttackHitBox->AttachToComponent(OwnerSpriteComponent.Get(), AttachmentRules);
@@ -68,7 +58,6 @@ void UHeroCombatComponent::InitializeComponent()
 			ConfigureAttackCollisionComponent(AttackHitBox);
 			AttackHitBox->OnComponentBeginOverlap.AddDynamic(this, &UHeroCombatComponent::OnAttackHit);
 		}
-
 		if (AttackHitCapsule)
 		{
 			AttackHitCapsule->AttachToComponent(OwnerSpriteComponent.Get(), AttachmentRules);
@@ -78,7 +67,6 @@ void UHeroCombatComponent::InitializeComponent()
 			ConfigureAttackCollisionComponent(AttackHitCapsule);
 			AttackHitCapsule->OnComponentBeginOverlap.AddDynamic(this, &UHeroCombatComponent::OnAttackHit);
 		}
-
 		if (ThrustAttackCapsule)
 		{
 			ThrustAttackCapsule->AttachToComponent(OwnerSpriteComponent.Get(), AttachmentRules);
@@ -90,7 +78,6 @@ void UHeroCombatComponent::InitializeComponent()
 		}
 	}
 }
-
 void UHeroCombatComponent::ConfigureAttackCollisionComponent(UPrimitiveComponent* CollisionComp, FName ProfileName)
 {
 	if (CollisionComp)
@@ -106,11 +93,9 @@ void UHeroCombatComponent::ConfigureAttackCollisionComponent(UPrimitiveComponent
 		CollisionComp->SetGenerateOverlapEvents(true);
 	}
 }
-
 void UHeroCombatComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
 	if (AttackHitBox)
 	{
 		AttackHitBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -123,7 +108,6 @@ void UHeroCombatComponent::BeginPlay()
 	{
 		ThrustAttackCapsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
-
 	if (CombatSettings)
 	{
 		CurrentComboResetDelay = CombatSettings->ComboResetDelayAfterWindowClose;
@@ -138,13 +122,11 @@ void UHeroCombatComponent::BeginPlay()
 		CurrentSwordBeamDamage = CombatSettings->SwordBeamDamage;
 		CurrentSwordBeamLifeSpan = CombatSettings->SwordBeamLifeSpan;
 	}
-
 	ComboCount = 0;
 	bCanCombo = true;
 	bIsPerformingAirAttack = false;
 	bCanAirAttack = true;
 }
-
 void UHeroCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	DeactivateCurrentAttackCollision();
@@ -159,10 +141,8 @@ void UHeroCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 			OwnerHero->OnActionWillInterrupt.RemoveDynamic(this, &UHeroCombatComponent::HandleActionInterrupt);
 		}
 	}
-
 	Super::EndPlay(EndPlayReason);
 }
-
 void UHeroCombatComponent::BindInputActions_Implementation(UEnhancedInputComponent* EnhancedInputComponent)
 {
 	if (EnhancedInputComponent && ComboAttackAction)
@@ -171,20 +151,17 @@ void UHeroCombatComponent::BindInputActions_Implementation(UEnhancedInputCompone
 		                                   &UHeroCombatComponent::HandleAttackInputTriggered);
 	}
 }
-
 void UHeroCombatComponent::HandleAttackInputTriggered(const FInputActionValue& Value)
 {
 	if (!OwnerCharacter.IsValid())
 	{
 		return;
 	}
-
 	UCharacterMovementComponent* MovementComp = OwnerCharacter->GetCharacterMovement();
 	if (!MovementComp)
 	{
 		return;
 	}
-
 	if (MovementComp->IsFalling())
 	{
 		if (CanAirAttack())
@@ -202,20 +179,16 @@ void UHeroCombatComponent::HandleAttackInputTriggered(const FInputActionValue& V
 		{
 			return;
 		}
-
 		PerformGroundCombo();
 	}
 }
-
 void UHeroCombatComponent::PerformGroundCombo()
 {
 	bool bStartingNewCombo = (ComboCount == 0);
 	ComboCount++;
 	bCanCombo = false;
-
 	TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimListener();
 	if (Listener) { Listener->Execute_OnCombatStateChanged(Listener.GetObject(), ComboCount); }
-
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(ResetComboTimer);
@@ -224,40 +197,33 @@ void UHeroCombatComponent::PerformGroundCombo()
 	if (bStartingNewCombo && OwnerCharacter.IsValid())
 	{
 		UCharacterMovementComponent* MoveComp = OwnerCharacter->GetCharacterMovement();
-	
 		if (MoveComp && MoveComp->IsMovingOnGround())
 		{
-			
-			OnGroundComboStarted.Broadcast(); // <--- 广播开始事件
+			OnGroundComboStarted.Broadcast(); 
 		}
 	}
-
 	if (ComboCount >= CurrentMaxGroundComboCount)
 	{
 		StartAttackCooldown();
 	}
 }
-
 void UHeroCombatComponent::PerformAirAttack()
 {
 	bIsPerformingAirAttack = true;
 	bCanAirAttack = false;
 	bCanCombo = false;
 	ComboCount = 0;
-
 	TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimListener();
 	if (Listener)
 	{
 		Listener->Execute_OnAirAttackStateChanged(Listener.GetObject(), true);
 		Listener->Execute_OnCombatStateChanged(Listener.GetObject(), ComboCount);
 	}
-
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(ResetComboTimer);
 		GetWorld()->GetTimerManager().ClearTimer(AttackCooldownTimer);
 	}
-
 	if (GetWorld() && CurrentAirAttackCooldownDuration > 0)
 	{
 		GetWorld()->GetTimerManager().SetTimer(
@@ -269,36 +235,29 @@ void UHeroCombatComponent::PerformAirAttack()
 		OnAirAttackCooldownFinished();
 	}
 }
-
 void UHeroCombatComponent::SpawnSwordBeam()
 {
 	if (!OwnerCharacter.IsValid() || !OwnerSpriteComponent.IsValid() || !CurrentSwordBeamClass || !GetWorld())
 	{
 		return;
 	}
-
 	float DirectionMultiplier = OwnerSpriteComponent->GetRelativeScale3D().X >= 0.0f ? 1.0f : -1.0f;
 	FVector SpawnDirection = OwnerCharacter->GetActorForwardVector() * DirectionMultiplier;
 	FVector OwnerLocation = OwnerSpriteComponent->GetComponentLocation();
 	FRotator OwnerRotation = OwnerCharacter->GetActorRotation();
-
 	FVector FinalOffset = CurrentSwordBeamSpawnOffset;
 	FinalOffset.X *= DirectionMultiplier;
 	FinalOffset = OwnerRotation.RotateVector(FinalOffset);
-
 	FVector SpawnLocation = OwnerLocation + FinalOffset;
 	FRotator SpawnRotation = SpawnDirection.Rotation();
-
 	FActorSpawnParameters SpawnParams;
 	APawn* OwnerPawn = Cast<APawn>(OwnerCharacter.Get());
 	SpawnParams.Owner = OwnerPawn;
 	SpawnParams.Instigator = OwnerPawn;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
 	ASwordBeamProjectile* NewProjectile = GetWorld()->SpawnActor<ASwordBeamProjectile>(
 		CurrentSwordBeamClass, SpawnLocation, SpawnRotation, SpawnParams
 	);
-
 	if (NewProjectile)
 	{
 		NewProjectile->InitializeProjectile(
@@ -307,7 +266,6 @@ void UHeroCombatComponent::SpawnSwordBeam()
 		);
 	}
 }
-
 void UHeroCombatComponent::StartAttackCooldown()
 {
 	if (GetWorld() && CurrentGroundAttackCooldownDuration > 0)
@@ -324,12 +282,10 @@ void UHeroCombatComponent::StartAttackCooldown()
 		OnAttackCooldownFinished();
 	}
 }
-
 void UHeroCombatComponent::OnAttackCooldownFinished()
 {
 	ResetComboState();
 }
-
 void UHeroCombatComponent::OnAirAttackCooldownFinished()
 {
 	bCanAirAttack = true;
@@ -338,112 +294,85 @@ void UHeroCombatComponent::ResetComboState()
 {
 	bool bWasInGroundCombo = (ComboCount > 0 && !bIsPerformingAirAttack);
 	bool bWasAirAttacking = bIsPerformingAirAttack;
-	bool bStateChanged = (ComboCount != 0 || bIsPerformingAirAttack); // 标记状态是否真的改变了
-
-	// --- 重置核心状态 ---
+	bool bStateChanged = (ComboCount != 0 || bIsPerformingAirAttack); 
 	ComboCount = 0;
-	bCanCombo = true; // 重置后应该可以开始新连击 (除非有冷却)
+	bCanCombo = true; 
 	bIsPerformingAirAttack = false;
-
-	// --- 清理计时器 ---
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(ResetComboTimer);
 		GetWorld()->GetTimerManager().ClearTimer(AttackCooldownTimer);
 	}
-
-
 	if (bWasInGroundCombo)
 	{
 		UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: Broadcasting OnGroundComboEnded due to ResetComboState."));
-		OnGroundComboEnded.Broadcast(); // 这个会通知 Actor 将 bMovementInputBlocked 设为 false
+		OnGroundComboEnded.Broadcast(); 
 	}
-
-	// --- 通知动画实例 ---
-	if (bStateChanged) // 只有在状态确实改变时才通知，避免冗余调用
+	if (bStateChanged) 
 	{
 		TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimListener();
 		if (Listener)
 		{
-			// 总是通知 ComboCount 为 0
 			Listener->Execute_OnCombatStateChanged(Listener.GetObject(), ComboCount);
-
-			if (bWasAirAttacking) // 如果之前是空袭状态，通知空袭结束
+			if (bWasAirAttacking) 
 			{
 				Listener->Execute_OnAirAttackStateChanged(Listener.GetObject(), false);
 			}
 		}
 	}
 }
-
 void UHeroCombatComponent::OnAttackHit(
 	UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	// 1. 基本检查
 	if (!OwnerCharacter.IsValid() || !OtherActor || OtherActor == OwnerCharacter.Get() || !OverlappedComponent)
 	{
 		return;
 	}
-
-	// 2. 确定伤害值 (这部分逻辑保持不变)
 	float DamageToApply = 0.0f;
 	FName HitCompTag = OverlappedComponent->ComponentTags.IsValidIndex(0) ? OverlappedComponent->ComponentTags[0] : NAME_None;
-
 	if (HitCompTag != AttackShapeNames::AttackHitBox &&
 		HitCompTag != AttackShapeNames::AttackHitCapsule &&
 		HitCompTag != AttackShapeNames::ThrustAttackCapsule)
 	{
-		return; // 不是已知的攻击形状
+		return; 
 	}
-
 	if (bIsPerformingAirAttack)
 	{
-		if (HitCompTag == AttackShapeNames::AttackHitCapsule) // 假设空袭只用这个胶囊造成伤害
+		if (HitCompTag == AttackShapeNames::AttackHitCapsule) 
 		{
 			DamageToApply = CurrentAirAttackMeleeDamage;
 			UE_LOG(LogTemp, Log, TEXT("Hero Air Attack Hit %s with %s (Damage: %.1f)"), *OtherActor->GetName(), *HitCompTag.ToString(), DamageToApply);
 		}
 	}
-	else // 地面攻击
+	else 
 	{
-		DamageToApply = CurrentGroundBaseAttackDamage; // 地面攻击使用基础伤害
+		DamageToApply = CurrentGroundBaseAttackDamage; 
 		UE_LOG(LogTemp, Log, TEXT("Hero Ground Attack Hit %s with %s (Damage: %.1f)"), *OtherActor->GetName(), *HitCompTag.ToString(), DamageToApply);
 	}
-
-	// 3. 施加伤害 (修改部分)
 	if (DamageToApply > 0)
 	{
 		AActor* Attacker = OwnerCharacter.Get();
 		if (!UCombatGameplayStatics::CanDamageActor(Attacker, OtherActor))
 		{
-			return; // 如果不能伤害，直接返回
+			return; 
 		}
 		if (OtherActor->GetClass()->ImplementsInterface(UDamageable::StaticClass()))
 		{
-			// 获取伤害施加者的控制器
 			AController* DamageInstigatorController = nullptr;
-			if (APawn* OwnerPawn = Cast<APawn>(OwnerCharacter.Get())) // 获取 Pawn
+			if (APawn* OwnerPawn = Cast<APawn>(OwnerCharacter.Get())) 
 			{
-				DamageInstigatorController = OwnerPawn->GetController(); // 从 Pawn 获取 Controller
+				DamageInstigatorController = OwnerPawn->GetController(); 
 			}
-
-			// 调用接口函数施加伤害
-			// 参数：目标Actor, 伤害值, 伤害来源Actor (英雄自己), 来源控制器, HitResult
 			IDamageable::Execute_ApplyDamage(OtherActor, DamageToApply, OwnerCharacter.Get(), DamageInstigatorController, SweepResult);
 			UE_LOG(LogTemp, Log, TEXT("Applied damage %.1f to %s via IDamageable interface."), DamageToApply, *OtherActor->GetName());
-
-			// 可选：在这里添加击中效果等
 		}
 		else
 		{
-			// 如果对方没有实现 IDamageable 接口，则不施加伤害
 			UE_LOG(LogTemp, Log, TEXT("Actor %s does not implement IDamageable. No damage applied by HeroCombatComponent."), *OtherActor->GetName());
 		}
-	
 	}
 }
-
 void UHeroCombatComponent::EnableComboInput()
 {
 	if (OwnerCharacter.IsValid() && OwnerCharacter->GetCharacterMovement() && !OwnerCharacter->GetCharacterMovement()->
@@ -453,16 +382,13 @@ void UHeroCombatComponent::EnableComboInput()
 		bCanCombo = true;
 	}
 }
-
 void UHeroCombatComponent::CloseComboWindowAndSetupResetTimer()
 {
 	if (bIsPerformingAirAttack)
 	{
 		return;
 	}
-
 	bCanCombo = false;
-
 	if (ComboCount < CurrentMaxGroundComboCount && !AttackCooldownTimer.IsValid())
 	{
 		if (GetWorld() && CurrentComboResetDelay > 0)
@@ -476,12 +402,10 @@ void UHeroCombatComponent::CloseComboWindowAndSetupResetTimer()
 		}
 	}
 }
-
 void UHeroCombatComponent::HandleAnimNotify_SpawnSwordBeam()
 {
 	SpawnSwordBeam();
 }
-
 void UHeroCombatComponent::HandleAnimNotify_AirAttackEnd()
 {
 	if (bIsPerformingAirAttack)
@@ -491,18 +415,14 @@ void UHeroCombatComponent::HandleAnimNotify_AirAttackEnd()
 		if (Listener) { Listener->Execute_OnAirAttackStateChanged(Listener.GetObject(), false); }
 	}
 }
-
 void UHeroCombatComponent::ActivateAttackCollision(FName ShapeIdentifier, float Duration)
 {
 	if (Duration <= 0)
 	{
 		return;
 	}
-
 	DeactivateCurrentAttackCollision();
-
 	UPrimitiveComponent* ShapeToActivate = nullptr;
-
 	if (ShapeIdentifier == AttackShapeNames::AttackHitBox && AttackHitBox) { ShapeToActivate = AttackHitBox.Get(); }
 	else if (ShapeIdentifier == AttackShapeNames::AttackHitCapsule && AttackHitCapsule)
 	{
@@ -512,12 +432,10 @@ void UHeroCombatComponent::ActivateAttackCollision(FName ShapeIdentifier, float 
 	{
 		ShapeToActivate = ThrustAttackCapsule.Get();
 	}
-
 	if (ShapeToActivate)
 	{
 		ShapeToActivate->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		ActiveAttackCollisionShape = ShapeToActivate;
-
 		if (GetWorld())
 		{
 			GetWorld()->GetTimerManager().SetTimer(AttackCollisionTimer, this,
@@ -526,21 +444,18 @@ void UHeroCombatComponent::ActivateAttackCollision(FName ShapeIdentifier, float 
 		}
 	}
 }
-
 void UHeroCombatComponent::DeactivateCurrentAttackCollision()
 {
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(AttackCollisionTimer);
 	}
-
 	if (ActiveAttackCollisionShape.IsValid())
 	{
 		ActiveAttackCollisionShape->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		ActiveAttackCollisionShape = nullptr;
 	}
 }
-
 TScriptInterface<ICharacterAnimationStateListener> UHeroCombatComponent::GetAnimListener() const
 {
 	TScriptInterface<ICharacterAnimationStateListener> Listener = nullptr;
@@ -555,7 +470,6 @@ TScriptInterface<ICharacterAnimationStateListener> UHeroCombatComponent::GetAnim
 	}
 	return nullptr;
 }
-
 void UHeroCombatComponent::NotifyLanded()
 {
 	if (bIsPerformingAirAttack)
@@ -572,10 +486,9 @@ void UHeroCombatComponent::NotifyLanded()
 void UHeroCombatComponent::HandleActionInterrupt()
 {
 	UE_LOG(LogTemp, Log, TEXT("HeroCombatComponent: HandleActionInterrupt called."));
-	// 检查是否确实有需要中断的状态
 	if (ComboCount > 0 || bIsPerformingAirAttack || ActiveAttackCollisionShape.IsValid() || GetWorld()->GetTimerManager().IsTimerActive(AttackCollisionTimer))
 	{
-		ResetComboState(); // 重置逻辑状态
-		DeactivateCurrentAttackCollision(); // 关闭当前攻击碰撞
+		ResetComboState(); 
+		DeactivateCurrentAttackCollision(); 
 	}
 }

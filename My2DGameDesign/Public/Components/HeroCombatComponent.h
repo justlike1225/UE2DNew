@@ -30,6 +30,7 @@ namespace AttackShapeNames
 	const FName AttackHitBox(TEXT("AttackHitBox"));
 	const FName AttackHitCapsule(TEXT("AttackHitCapsule"));
 	const FName ThrustAttackCapsule(TEXT("ThrustAttackCapsule"));
+
 }
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -86,6 +87,7 @@ public:
 	void HandleActionInterrupt();
 
 protected:
+	
 	// --- 组件 ---
 	/** @brief 用于普通攻击的盒子碰撞体 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Collision", meta = (AllowPrivateAccess = "true"))

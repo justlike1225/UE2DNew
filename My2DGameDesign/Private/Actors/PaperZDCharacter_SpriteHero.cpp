@@ -17,6 +17,7 @@
 #include "Interfaces/AnimationListener/CharacterAnimationStateListener.h"
 #include "DataAssets/CharacterMovementSettingsDA.h"
 #include "DataAssets/HeroDA/HeroRageDashSkillSettingsDA.h"
+#include "DataAssets/HeroDA/HeroUpwardSweepSettingsDA.h"
 #include "Engine/Engine.h"
 #include "Utils/CombatGameplayStatics.h"
 
@@ -61,6 +62,16 @@ void APaperZDCharacter_SpriteHero::NotifyHurtRecovery()
 	{
 		bIsIncapacitated = false;
 	}
+}
+
+bool APaperZDCharacter_SpriteHero::IsPerformingUpwardSweep()
+{
+	return bIsPerformingUpwardSweep;
+}
+
+const UHeroUpwardSweepSettingsDA* APaperZDCharacter_SpriteHero::GetUpwardSweepSettings()
+{
+	return UpwardSweepSettings;
 }
 
 
@@ -251,8 +262,7 @@ void APaperZDCharacter_SpriteHero::ExecuteRageDash()
 
 	// 保留: 通知动画开始
 	AnimationStateListener->Execute_OnRageDashStarted(AnimationStateListener.GetObject());
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
-	                                 TEXT("Rage Dash started! (Charge Phase)")); // 修改提示
+
 
 	// 保留: 获取移动组件和停止当前移动（防止蓄力时滑动）
 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
@@ -268,7 +278,6 @@ void APaperZDCharacter_SpriteHero::ExecuteRageDashMovement()
 	// 检查状态，确保是在RageDash期间被动画通知调用
 	if (!bIsRageDashing || !RageDashSkillSettings || !GetCharacterMovement()) return;
 
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, TEXT("Rage Dash Movement Triggered by AnimNotify!"));
 
 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
 
@@ -473,7 +482,11 @@ void APaperZDCharacter_SpriteHero::SetupPlayerInputComponent(UInputComponent* Pl
 			                          &APaperZDCharacter_SpriteHero::HandleRageDashInputTriggered);
 		}
 
-
+		if (UpwardSweepAction)
+		{
+			EnhancedInput->BindAction(UpwardSweepAction, ETriggerEvent::Started, this,
+			                          &APaperZDCharacter_SpriteHero::HandleUpwardSweepInputTriggered);
+		}
 		TArray<UActorComponent*> Components;
 		GetComponents(Components);
 		for (UActorComponent* Component : Components)
@@ -744,7 +757,10 @@ float APaperZDCharacter_SpriteHero::ApplyDamage_Implementation(float DamageAmoun
 			{
 				CancelRageDash();
 			}
-
+			if (bIsPerformingUpwardSweep)
+			{
+				FinishUpwardSweep();
+			}
 
 			TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimStateListener_Implementation();
 			if (Listener)
@@ -833,4 +849,101 @@ void APaperZDCharacter_SpriteHero::HandleDeath(AActor* Killer)
 
 void APaperZDCharacter_SpriteHero::HandleTakeHit(float CurrentHealthVal, float MaxHealthVal)
 {
+}
+
+void APaperZDCharacter_SpriteHero::HandleUpwardSweepInputTriggered(const FInputActionValue& Value)
+{
+	TryExecuteUpwardSweep();
+}
+
+bool APaperZDCharacter_SpriteHero::CanExecuteUpwardSweep() const
+{
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	if (!UpwardSweepSettings || !RageComponent || !MoveComp)
+	{
+		return false;
+	}
+
+
+	if (!MoveComp->IsMovingOnGround())
+	{
+		return false;
+	}
+
+
+	if (bIsPerformingUpwardSweep || bIsUpwardSweepOnCooldown || bIsRageDashing || bIsIncapacitated || (HealthComponent
+		&& HealthComponent->IsDead()))
+	{
+		return false;
+	}
+
+	if (CombatComponent && (CombatComponent->GetComboCount() > 0 || CombatComponent->IsPerformingAirAttack()))
+		return
+			false;
+	if (DashComponent && DashComponent->IsDashing()) return false;
+
+
+	if (RageComponent->GetCurrentRage() < UpwardSweepSettings->RageCost)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+void APaperZDCharacter_SpriteHero::TryExecuteUpwardSweep()
+{
+	if (CanExecuteUpwardSweep())
+	{
+		ExecuteUpwardSweep();
+	}
+}
+
+void APaperZDCharacter_SpriteHero::ExecuteUpwardSweep()
+{
+	if (!ensure(UpwardSweepSettings && RageComponent && GetCharacterMovement() && AnimationStateListener)) return;
+
+
+	RageComponent->ConsumeRage(UpwardSweepSettings->RageCost);
+
+
+	bIsPerformingUpwardSweep = true;
+	bMovementInputBlocked = true;
+	bIsUpwardSweepOnCooldown = true;
+
+
+	GetWorldTimerManager().SetTimer(UpwardSweepCooldownTimer, this,
+	                                &APaperZDCharacter_SpriteHero::OnUpwardSweepCooldownFinished,
+	                                UpwardSweepSettings->Cooldown, false);
+
+
+	GetCharacterMovement()->StopMovementKeepPathing();
+
+
+	BroadcastActionInterrupt_Implementation();
+
+
+	AnimationStateListener->Execute_OnUpwardSweepStarted(AnimationStateListener.GetObject());
+}
+
+
+void APaperZDCharacter_SpriteHero::FinishUpwardSweep()
+{
+	if (!bIsPerformingUpwardSweep)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
+		                       TEXT("FinishUpwardSweep: Not currently performing Upward Sweep!"));
+		return;
+	}
+
+
+	bIsPerformingUpwardSweep = false;
+	bMovementInputBlocked = false;
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
+	                       TEXT("FinishUpwardSweep: Upward Sweep finished!"));
+}
+
+void APaperZDCharacter_SpriteHero::OnUpwardSweepCooldownFinished()
+{
+	bIsUpwardSweepOnCooldown = false;
 }

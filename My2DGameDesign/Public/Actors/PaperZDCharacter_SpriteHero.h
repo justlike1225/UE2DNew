@@ -26,6 +26,7 @@ class UInputAction;
 class UPaperFlipbookComponent;
 class ICharacterAnimationStateListener;
 class UHeroRageDashSkillSettingsDA;
+class UHeroUpwardSweepSettingsDA;
 struct FHitResult; 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnActionInterruptSignature);
@@ -45,12 +46,16 @@ public:
 	void NotifyHurtRecovery();
 	UFUNCTION(BlueprintPure, Category="Character State")
 	bool IsMovementInputBlocked() const { return bMovementInputBlocked; }
+
+	bool IsPerformingUpwardSweep();
+	const UHeroUpwardSweepSettingsDA* GetUpwardSweepSettings();
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Team")
 	FGenericTeamId TeamId = FGenericTeamId(0);
 	virtual FGenericTeamId GetGenericTeamId() const override { return TeamId; }
 	virtual ETeamAttitude::Type GetTeamAttitudeTowards(const AActor& Other) const override;
 
-    
+	UFUNCTION(BlueprintCallable, Category="Skills|UpwardSweep")
+	void FinishUpwardSweep();
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration | Movement")
 	TObjectPtr<UCharacterMovementSettingsDA> MovementSettings;
 	virtual FVector GetFacingDirection_Implementation() const override;
@@ -125,7 +130,23 @@ protected:
 	FTimerHandle RageDashCooldownTimer;
 	float OriginalMovementSpeed = 0.f; 
 	float OriginalGravity = 1.f;    
+
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> UpwardSweepAction; 
+
+	UPROPERTY(EditDefaultsOnly, Category = "Configuration | Skills")
+	TObjectPtr<UHeroUpwardSweepSettingsDA> UpwardSweepSettings; 
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Character State|Skills", meta=(AllowPrivateAccess="true"))
+	bool bIsPerformingUpwardSweep = false; 
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Character State|Skills", meta=(AllowPrivateAccess="true"))
+	bool bIsUpwardSweepOnCooldown = false; 
+
+	FTimerHandle UpwardSweepCooldownTimer;
 	
+    
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Animation", meta=(AllowPrivateAccess = "true"))
 	TScriptInterface<ICharacterAnimationStateListener> AnimationStateListener;
 	UPROPERTY(EditDefaultsOnly, Category = "Configuration | Skills")
@@ -161,7 +182,12 @@ protected:
 	void EndRageDashMovement();     
 	void OnRageDashCooldownFinished();
 	void CancelRageDash();          
-    
+
+	void HandleUpwardSweepInputTriggered(const FInputActionValue& Value);
+	bool CanExecuteUpwardSweep() const;
+	void TryExecuteUpwardSweep();
+	void ExecuteUpwardSweep();
+	void OnUpwardSweepCooldownFinished();
 	UFUNCTION()
 	void HandleComboStarted();
 	UFUNCTION()

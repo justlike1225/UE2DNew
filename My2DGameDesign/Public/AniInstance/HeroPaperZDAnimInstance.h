@@ -20,6 +20,8 @@ public:
 	void ExitHurtAnimStateEvent();
 	UFUNCTION(BlueprintCallable, Category = "Animation State Events")
 	void ExitRageDashAnimStateEvent();
+	UFUNCTION(BlueprintCallable, Category = "Animation State Events")
+	void ExitUpwardSweepAnimStateEvent();
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character State|Movement",
 		meta = (AllowPrivateAccess = "true"))
@@ -58,7 +60,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character State|State",
 		meta = (AllowPrivateAccess = "true"))
 	bool bIsDead = false;
-
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character State|Skills", meta = (AllowPrivateAccess = "true"))
+	bool bIsPerformingUpwardSweep = false;
+    
 
 	UPROPERTY()
 	TWeakObjectPtr<UCharacterMovementComponent> MovementComponentPtr;
@@ -71,7 +75,9 @@ protected:
 	virtual void OnJumpRequested_Implementation() override;
 	virtual void OnAirAttackStateChanged_Implementation(bool bNewIsAirAttacking) override;
 	virtual void OnFallingRequested_Implementation() override;
-
+	
+	virtual void OnUpwardSweepStarted_Implementation() override;
+    
 	virtual void OnTakeHit_Implementation(float DamageAmount, const FVector& HitDirection,
 	                                      bool bInterruptsCurrentAction) override;
 	virtual void OnDeathState_Implementation(AActor* Killer) override;

@@ -39,7 +39,8 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Animation State Listener")
 	void OnFallingRequested();
 
-	
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Animation State Listener | Skills")
+	void OnUpwardSweepStarted();
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Animation State Listener | Skills")
 	void OnRageDashStarted(); 
 	/**

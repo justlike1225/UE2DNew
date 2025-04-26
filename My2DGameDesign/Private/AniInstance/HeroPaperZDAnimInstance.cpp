@@ -23,6 +23,30 @@ void UHeroPaperZDAnimInstance::ExitRageDashAnimStateEvent()
 		this->bIsRageDashing = false;
 	}
 }
+
+void UHeroPaperZDAnimInstance::OnUpwardSweepStarted_Implementation()
+{
+	if (bIsDead) return; 
+
+	this->bIsPerformingUpwardSweep = true;
+	
+	this->bIsWalking = false;
+	this->bIsRunning = false;
+	this->ComboCount = 0;
+	this->bIsAirAttacking = false;
+	this->bIsDashing = false;
+	this->bIsRageDashing = false;
+
+}
+
+void UHeroPaperZDAnimInstance::ExitUpwardSweepAnimStateEvent()
+{
+	if (this->bIsPerformingUpwardSweep) 
+	{
+		this->bIsPerformingUpwardSweep = false;
+		
+	}
+}
 void UHeroPaperZDAnimInstance::OnInit_Implementation()
 {
 	Super::OnInit_Implementation();
