@@ -414,123 +414,118 @@ void UHeroCombatComponent::CloseComboWindowAndSetupResetTimer()
 }
 void UHeroCombatComponent::PerformSweepTraceTick()
 {
-	if (!bIsTrackingAttackPoint)
-	{
-		StopSweepTrace();
-		return;
-	}
+    if (!bIsTrackingAttackPoint)
+    {
+        StopSweepTrace();
+        return;
+    }
 
-	APaperZDCharacter_SpriteHero* Hero = Cast<APaperZDCharacter_SpriteHero>(GetOwner());
-	if (!Hero)
-	{
-		StopSweepTrace();
-		return;
-	}
+    // 获取角色和世界
+    APaperZDCharacter_SpriteHero* Hero = Cast<APaperZDCharacter_SpriteHero>(GetOwner());
+    if (!Hero)
+    {
+        StopSweepTrace();
+        return;
+    }
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        StopSweepTrace();
+        return;
+    }
 
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		StopSweepTrace();
-		return;
-	}
+    // 计算归一化时间
+    float CurrentWorldTime = World->GetTimeSeconds();
+    float ElapsedTime = CurrentWorldTime - AttackTraceStartTime;
+    if (ElapsedTime >= AttackTraceDuration)
+    {
+        StopSweepTrace();
+        return;
+    }
+    float NormalizedTime = FMath::Clamp(ElapsedTime / AttackTraceDuration, 0.0f, 1.0f);
 
-	UPaperFlipbookComponent* SpriteComp = Hero->GetSprite();
-	if (!SpriteComp)
-	{
-		StopSweepTrace();
-		return;
-	}
+    // 计算朝向和相对偏移
+    FVector FacingDirection = IFacingDirectionProvider::Execute_GetFacingDirection(Hero);
+    FVector CurrentRelativeOffset = GetInterpolatedOffset(NormalizedTime);
+    if (FacingDirection.X < 0.0f)
+    {
+        CurrentRelativeOffset.X *= -1.0f;
+    }
 
-	float CurrentWorldTime = World->GetTimeSeconds();
-	float ElapsedTime = CurrentWorldTime - AttackTraceStartTime;
+    // 计算当前帧剑尖世界坐标
+    FVector ActorLocation = Hero->GetActorLocation();
+    FVector CurrentTipWorld = ActorLocation + CurrentRelativeOffset;
 
-	if (ElapsedTime >= AttackTraceDuration)
-	{
-		StopSweepTrace();
-		return;
-	}
+    // 计算上一帧剑尖世界坐标
+    FVector PrevTipWorld = PreviousAttackPointWorldLocation;
 
-	float NormalizedTime = FMath::Clamp(ElapsedTime / AttackTraceDuration, 0.0f, 1.0f);
+    // 计算剑身方向和长度
+    FVector BladeVector = CurrentTipWorld - PrevTipWorld;
+    float   BladeLength = BladeVector.Size();
+    if (BladeLength < KINDA_SMALL_NUMBER)
+    {
+        return; // 如果两帧几乎重合，跳过
+    }
+    FVector BladeDir = BladeVector / BladeLength;
+    float   BladeHalfLength = BladeLength * 0.5f;
 
-	// 1. 计算当前位置（不依赖SpriteComp的Transform）
-	FVector FacingDirection = IFacingDirectionProvider::Execute_GetFacingDirection(Hero);
-	FVector CurrentRelativeOffset = GetInterpolatedOffset(NormalizedTime);
+    // 盒子半尺寸：X 方向半长为 BladeHalfLength，Y/Z 方向厚度随需求调整
+    const float BladeThickness = 10.0f; // 根据美术需求设置
+    FVector BoxHalfExtent(BladeHalfLength, BladeThickness * 0.5f, BladeThickness * 0.5f);
 
-	if (FacingDirection.X < 0.0f)
-	{
-		CurrentRelativeOffset.X *= -1.0f;
-	}
+    // 计算盒子中心位置
+    FVector PrevCenter = PrevTipWorld + BladeDir * BladeHalfLength;
+    FVector CurrCenter = CurrentTipWorld - BladeDir * BladeHalfLength;
 
-	FVector ActorLocation = Hero->GetActorLocation();
-	FVector CurrentWorldLocation = ActorLocation + CurrentRelativeOffset;
+    // 盒子朝向，让 X 轴对齐剑身方向
+    FQuat BoxQuat = FRotationMatrix::MakeFromX(BladeDir).ToQuat();
+    FRotator BoxOrientation = BoxQuat.Rotator();
 
-	// 2. 进行Sphere Trace
-	FVector StartTrace = PreviousAttackPointWorldLocation;
-	FVector EndTrace = CurrentWorldLocation;
+    // 设置 Trace 过滤列表
+    TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes = { UEngineTypes::ConvertToObjectType(ECC_Pawn) };
+    TArray<AActor*> ActorsToIgnore = { Hero };
 
-	if (!StartTrace.Equals(EndTrace, 0.1f))
-	{
-		TArray<FHitResult> HitResults;
-		TArray<AActor*> ActorsToIgnore = { Hero };
-		TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes = { UEngineTypes::ConvertToObjectType(ECC_Pawn) };
+    // 执行 BoxTrace
+    TArray<FHitResult> HitResults;
+    UKismetSystemLibrary::BoxTraceMultiForObjects(
+        this,               // WorldContextObject
+        PrevCenter,         // Start
+        CurrCenter,         // End
+        BoxHalfExtent,      // Half Size
+        BoxOrientation,     // Orientation
+        ObjectTypes,        // Object Types
+        false,              // bTraceComplex
+        ActorsToIgnore,     // Actors to ignore
+        EDrawDebugTrace::None,
+        HitResults,
+        /* bIgnoreSelf */ true
+    );
 
-		const float TraceRadius = 10.0f;
+    // 处理命中
+    for (const FHitResult& Hit : HitResults)
+    {
+        AActor* HitActor = Hit.GetActor();
+        if (!HitActor || HitActor == Hero || HitActorsThisSweep.Contains(HitActor))
+        {
+            continue;
+        }
+        if (!UCombatGameplayStatics::CanDamageActor(Hero, HitActor))
+        {
+            continue;
+        }
+        // 通过 IDamageable 接口应用伤害
+        const UHeroUpwardSweepSettingsDA* SweepSettings = Hero->GetUpwardSweepSettings();
+        if (HitActor->GetClass()->ImplementsInterface(UDamageable::StaticClass()) && SweepSettings)
+        {
+            float DamageToApply = SweepSettings->Damage;
+            AController* InstigatorController = Hero->GetController();
+            IDamageable::Execute_ApplyDamage(HitActor, DamageToApply, Hero, InstigatorController, Hit);
+            HitActorsThisSweep.Add(HitActor);
+        }
+    }
 
-		bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
-			World,
-			StartTrace,
-			EndTrace,
-			TraceRadius,
-			ObjectTypes,
-			false,
-			ActorsToIgnore,
-			EDrawDebugTrace::ForDuration,
-			HitResults,
-			true,
-			FLinearColor::Red,
-			FLinearColor::Green,
-			0.1f
-		);
-
-		if (bHit)
-		{
-			for (const FHitResult& Hit : HitResults)
-			{
-				AActor* HitActor = Hit.GetActor();
-				if (HitActor && !HitActorsThisSweep.Contains(HitActor))
-				{
-					if (UCombatGameplayStatics::CanDamageActor(Hero, HitActor))
-					{
-						if (IDamageable* DamageableTarget = Cast<IDamageable>(HitActor))
-						{
-							HitActorsThisSweep.Add(HitActor);
-
-							float DamageToApply = 0.f;
-							const UHeroUpwardSweepSettingsDA* SweepSettings = Hero->GetUpwardSweepSettings();
-							if (SweepSettings)
-							{
-								DamageToApply = SweepSettings->Damage;
-							}
-
-							if (DamageToApply > 0.f)
-							{
-								AController* InstigatorController = Hero->GetController();
-								IDamageable::Execute_ApplyDamage(
-									HitActor,
-									DamageToApply,
-									Hero,
-									InstigatorController,
-									Hit
-								);
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	PreviousAttackPointWorldLocation = CurrentWorldLocation;
+    // 更新上一帧位置
+    PreviousAttackPointWorldLocation = CurrentTipWorld;
 }
 
 void UHeroCombatComponent::StopSweepTrace()
