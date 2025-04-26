@@ -11,6 +11,7 @@
 #include "GameFramework/DamageType.h"
 #include "TimerManager.h"
 #include "Actors/SwordBeamProjectile.h"
+#include "Components/RageComponent.h"
 #include "DataAssets/HeroDA/HeroUpwardSweepSettingsDA.h"
 #include "GameFramework/PlayerController.h"
 #include "Interfaces/Damageable.h"
@@ -346,15 +347,13 @@ void UHeroCombatComponent::OnAttackHit(
 		if (HitCompTag == AttackShapeNames::AttackHitCapsule)
 		{
 			DamageToApply = CurrentAirAttackMeleeDamage;
-			UE_LOG(LogTemp, Log, TEXT("Hero Air Attack Hit %s with %s (Damage: %.1f)"), *OtherActor->GetName(),
-			       *HitCompTag.ToString(), DamageToApply);
+			
 		}
 	}
 	else
 	{
 		DamageToApply = CurrentGroundBaseAttackDamage;
-		UE_LOG(LogTemp, Log, TEXT("Hero Ground Attack Hit %s with %s (Damage: %.1f)"), *OtherActor->GetName(),
-		       *HitCompTag.ToString(), DamageToApply);
+	
 	}
 	if (DamageToApply > 0)
 	{
@@ -372,15 +371,13 @@ void UHeroCombatComponent::OnAttackHit(
 			}
 			IDamageable::Execute_ApplyDamage(OtherActor, DamageToApply, OwnerCharacter.Get(),
 			                                 DamageInstigatorController, SweepResult);
-			UE_LOG(LogTemp, Log, TEXT("Applied damage %.1f to %s via IDamageable interface."), DamageToApply,
-			       *OtherActor->GetName());
+			APaperZDCharacter_SpriteHero* Hero = Cast<APaperZDCharacter_SpriteHero>(Attacker);
+			if (Hero)
+			{
+				Hero->GetRageComponent()->AddRage(10);
+			}
 		}
-		else
-		{
-			UE_LOG(LogTemp, Log,
-			       TEXT("Actor %s does not implement IDamageable. No damage applied by HeroCombatComponent."),
-			       *OtherActor->GetName());
-		}
+	
 	}
 }
 void UHeroCombatComponent::EnableComboInput()

@@ -77,7 +77,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Components")
 	UHeroCombatComponent* GetHeroCombatComponent() const { return CombatComponent; }
 	UFUNCTION(BlueprintPure, Category = "Components | Health")
-	UHealthComponent* GetHealthComponent() const { return HealthComponent; } 
+	UHealthComponent* GetHealthComponent() const { return HealthComponent; }
+	UFUNCTION(BlueprintPure, Category = "Components | Rage")
+	URageComponent* GetRageComponent() const { return RageComponent; }
 
 	
 	virtual TScriptInterface<ICharacterAnimationStateListener> GetAnimStateListener_Implementation() const override;
