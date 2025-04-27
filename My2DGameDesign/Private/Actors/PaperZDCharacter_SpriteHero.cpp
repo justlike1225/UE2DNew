@@ -13,6 +13,7 @@
 #include "Components/HeroCombatComponent.h"
 #include "Components/HealthComponent.h"
 #include "Components/RageComponent.h"
+#include "Components/Skills/RageDashComponent.h"
 #include "Interfaces/InputBindingComponent.h"
 #include "Interfaces/AnimationListener/CharacterAnimationStateListener.h"
 #include "DataAssets/CharacterMovementSettingsDA.h"
@@ -32,6 +33,7 @@ APaperZDCharacter_SpriteHero::APaperZDCharacter_SpriteHero()
 	CombatComponent = CreateDefaultSubobject<UHeroCombatComponent>(TEXT("CombatComponent"));
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	RageComponent = CreateDefaultSubobject<URageComponent>(TEXT("RageComponent"));
+	RageDashComponent = CreateDefaultSubobject<URageDashComponent>(TEXT("RageDashComponent")); 
 
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 
@@ -212,139 +214,6 @@ void APaperZDCharacter_SpriteHero::CacheMovementSpeeds()
 	}
 }
 
-bool APaperZDCharacter_SpriteHero::CanExecuteRageDash() const
-{
-	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-	if (!RageDashSkillSettings || !RageComponent || !MoveComp)
-	{
-		return false;
-	}
-
-	if (!MoveComp->IsMovingOnGround())
-	{
-		return false;
-	}
-
-	if (bIsRageDashing || bIsRageDashOnCooldown || bIsIncapacitated || (HealthComponent && HealthComponent->IsDead()))
-	{
-		return false;
-	}
-	if (RageComponent->GetCurrentRage() < RageDashSkillSettings->RageCost)
-	{
-		return false;
-	}
-
-	return true;
-}
-
-void APaperZDCharacter_SpriteHero::TryExecuteRageDash()
-{
-	if (CanExecuteRageDash())
-	{
-		ExecuteRageDash();
-	}
-}
-
-void APaperZDCharacter_SpriteHero::ExecuteRageDash()
-{
-	if (!ensure(RageDashSkillSettings && RageComponent && GetCharacterMovement() && AnimationStateListener)) return;
-
-	// 保留: 消耗怒气
-	RageComponent->ConsumeRage(RageDashSkillSettings->RageCost);
-	bMovementInputBlocked = true;
-	// 保留: 设置状态和冷却
-	bIsRageDashing = true;
-	bIsRageDashOnCooldown = true;
-	GetWorldTimerManager().SetTimer(RageDashCooldownTimer, this,
-	                                &APaperZDCharacter_SpriteHero::OnRageDashCooldownFinished,
-	                                RageDashSkillSettings->Cooldown, false);
-
-	// 保留: 广播中断
-	BroadcastActionInterrupt_Implementation();
-
-	// 保留: 通知动画开始
-	AnimationStateListener->Execute_OnRageDashStarted(AnimationStateListener.GetObject());
-
-
-	// 保留: 获取移动组件和停止当前移动（防止蓄力时滑动）
-	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-	// 保留: 缓存原始速度和重力
-	OriginalMovementSpeed = MoveComp->MaxWalkSpeed;
-	OriginalGravity = MoveComp->GravityScale;
-	MoveComp->StopMovementKeepPathing();
-}
-
-
-void APaperZDCharacter_SpriteHero::ExecuteRageDashMovement()
-{
-	// 检查状态，确保是在RageDash期间被动画通知调用
-	if (!bIsRageDashing || !RageDashSkillSettings || !GetCharacterMovement()) return;
-
-
-	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-
-	// 设置无重力
-	MoveComp->GravityScale = 0.0f;
-
-	// 计算方向并施加冲量
-	FVector DashDirection = GetFacingDirection_Implementation().GetSafeNormal();
-	LaunchCharacter(DashDirection * RageDashSkillSettings->DashSpeed, true, true);
-
-	// 清空本次冲刺已击中列表
-	HitActorsThisDash.Empty();
-
-	// 启用碰撞检测（用于 OnRageDashHit）
-	if (UCapsuleComponent* MainCapsule = GetCapsuleComponent())
-	{
-		MainCapsule->SetGenerateOverlapEvents(true);
-	}
-
-	// 启动冲刺移动的结束计时器
-	GetWorldTimerManager().SetTimer(RageDashMovementTimer, this, &APaperZDCharacter_SpriteHero::EndRageDashMovement,
-	                                RageDashSkillSettings->DashDuration, false);
-}
-
-
-void APaperZDCharacter_SpriteHero::EndRageDashMovement()
-{
-	if (!bIsRageDashing) return;
-
-
-	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-	if (MoveComp)
-	{
-		MoveComp->Velocity = FVector::ZeroVector;
-		MoveComp->GravityScale = OriginalGravity;
-	}
-
-	bMovementInputBlocked = false;
-	bIsRageDashing = false;
-}
-
-void APaperZDCharacter_SpriteHero::OnRageDashCooldownFinished()
-{
-	bIsRageDashOnCooldown = false;
-}
-
-void APaperZDCharacter_SpriteHero::CancelRageDash()
-{
-	if (!bIsRageDashing) return;
-
-
-	GetWorldTimerManager().ClearTimer(RageDashMovementTimer);
-
-
-	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-	if (MoveComp)
-	{
-		MoveComp->StopMovementKeepPathing();
-		MoveComp->GravityScale = OriginalGravity;
-	}
-	bMovementInputBlocked = false;
-
-	bIsRageDashing = false;
-}
-
 
 FVector APaperZDCharacter_SpriteHero::GetFacingDirection_Implementation() const
 {
@@ -478,11 +347,7 @@ void APaperZDCharacter_SpriteHero::SetupPlayerInputComponent(UInputComponent* Pl
 			EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this,
 			                          &APaperZDCharacter_SpriteHero::OnMoveCompleted);
 		}
-		if (RageDashAction)
-		{
-			EnhancedInput->BindAction(RageDashAction, ETriggerEvent::Started, this,
-			                          &APaperZDCharacter_SpriteHero::HandleRageDashInputTriggered);
-		}
+	
 
 		if (UpwardSweepAction)
 		{
@@ -619,10 +484,7 @@ void APaperZDCharacter_SpriteHero::OnMoveCompleted(const FInputActionValue& Valu
 	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement()) { MoveComp->MaxWalkSpeed = CachedWalkSpeed; }
 }
 
-void APaperZDCharacter_SpriteHero::HandleRageDashInputTriggered(const FInputActionValue& Value)
-{
-	TryExecuteRageDash();
-}
+
 
 void APaperZDCharacter_SpriteHero::OnRunTriggered(const FInputActionValue& Value)
 {
@@ -755,10 +617,7 @@ float APaperZDCharacter_SpriteHero::ApplyDamage_Implementation(float DamageAmoun
 			{
 				CombatComponent->HandleActionInterrupt();
 			}
-			if (bIsRageDashing)
-			{
-				CancelRageDash();
-			}
+			BroadcastActionInterrupt_Implementation();
 			if (bIsPerformingUpwardSweep)
 			{
 				FinishUpwardSweep();
@@ -782,37 +641,14 @@ float APaperZDCharacter_SpriteHero::ApplyDamage_Implementation(float DamageAmoun
 
 	return ActualDamage;
 }
-
-void APaperZDCharacter_SpriteHero::OnRageDashHit(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-                                                 UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
-                                                 const FHitResult& SweepResult)
+void APaperZDCharacter_SpriteHero::OnRageDashHit(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (!bIsRageDashing || !OtherActor || OtherActor == this || !RageDashSkillSettings)
+	// 将碰撞事件转发给 RageDashComponent 处理
+	if (RageDashComponent)
 	{
-		return;
-	}
-
-
-	if (HitActorsThisDash.Contains(OtherActor))
-	{
-		return;
-	}
-
-
-	if (UCombatGameplayStatics::CanDamageActor(this, OtherActor))
-	{
-		if (OtherActor->GetClass()->ImplementsInterface(UDamageable::StaticClass()))
-		{
-			HitActorsThisDash.Add(OtherActor);
-
-
-			float DamageToApply = RageDashSkillSettings->DamageAmount;
-			AController* MyController = GetController();
-			IDamageable::Execute_ApplyDamage(OtherActor, DamageToApply, this, MyController, SweepResult);
-		}
+		RageDashComponent->HandleRageDashHit(OtherActor, OtherComp, SweepResult);
 	}
 }
-
 
 void APaperZDCharacter_SpriteHero::HandleDeath(AActor* Killer)
 {
@@ -873,7 +709,7 @@ bool APaperZDCharacter_SpriteHero::CanExecuteUpwardSweep() const
 	}
 
 
-	if (bIsPerformingUpwardSweep || bIsUpwardSweepOnCooldown || bIsRageDashing || bIsIncapacitated || (HealthComponent
+	if (bIsPerformingUpwardSweep || bIsUpwardSweepOnCooldown || RageDashComponent->IsRageDashing() || bIsIncapacitated || (HealthComponent
 		&& HealthComponent->IsDead()))
 	{
 		return false;

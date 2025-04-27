@@ -75,7 +75,7 @@ protected:
 	virtual void OnJumpRequested_Implementation() override;
 	virtual void OnAirAttackStateChanged_Implementation(bool bNewIsAirAttacking) override;
 	virtual void OnFallingRequested_Implementation() override;
-	
+	virtual void OnRageDashEnded_Implementation() override;
 	virtual void OnUpwardSweepStarted_Implementation() override;
     
 	virtual void OnTakeHit_Implementation(float DamageAmount, const FVector& HitDirection,

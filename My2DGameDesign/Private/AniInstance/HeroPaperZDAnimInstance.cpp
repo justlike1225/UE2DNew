@@ -192,3 +192,12 @@ void UHeroPaperZDAnimInstance::OnTick_Implementation(float DeltaTime)
 		}
 	}
 }
+void UHeroPaperZDAnimInstance::OnRageDashEnded_Implementation()
+{
+	// 这个函数由 RageDashComponent 在冲刺逻辑结束时通过接口调用
+	// 我们在这里简单地更新动画实例的状态变量
+	if (this->bIsRageDashing) // 避免重复设置
+	{
+		this->bIsRageDashing = false;
+	}
+}

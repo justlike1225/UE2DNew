@@ -11,6 +11,7 @@
 #include "Interfaces/Damageable.h" 
 #include "PaperZDCharacter_SpriteHero.generated.h"
 
+class URageDashComponent;
 class URageComponent;
 class UHealthComponent; 
 class UCharacterMovementSettingsDA;
@@ -49,6 +50,8 @@ public:
 
 	bool IsPerformingUpwardSweep();
 	const UHeroUpwardSweepSettingsDA* GetUpwardSweepSettings();
+	void SetMovementInputBlocked(bool bCond){  bMovementInputBlocked = bCond; }
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Team")
 	FGenericTeamId TeamId = FGenericTeamId(0);
 	virtual FGenericTeamId GetGenericTeamId() const override { return TeamId; }
@@ -63,13 +66,13 @@ public:
 	bool IsWalking() const { return bIsWalking; }
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	bool IsRunning() const { return bIsRunning; }
-	void ExecuteRageDashMovement();
+	
 	
 	UPROPERTY(BlueprintAssignable, Category = "Character|Events")
 	FOnActionInterruptSignature OnActionWillInterrupt;
 	virtual void BroadcastActionInterrupt_Implementation() override;
-
-	
+	UFUNCTION(BlueprintPure, Category = "Components | RageDash")
+	URageDashComponent* GetRageDashComponent() const { return RageDashComponent; }
 	UFUNCTION(BlueprintPure, Category = "Components")
 	UDashComponent* GetDashComponent() const { return DashComponent; }
 	UFUNCTION(BlueprintPure, Category = "Components")
@@ -90,7 +93,8 @@ public:
 protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Character State", meta=(AllowPrivateAccess="true"))
 	bool bIsIncapacitated = false;
-    
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true")) // *** 新增 ***
+	TObjectPtr<URageDashComponent> RageDashComponent;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UAfterimageComponent> AfterimageComponent;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
@@ -103,7 +107,7 @@ protected:
 	TObjectPtr<UHealthComponent> HealthComponent; 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components | Rage", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<URageComponent> RageComponent;
-	
+
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputMappingContext> PlayerMappingContext;
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
@@ -112,9 +116,8 @@ protected:
 	TObjectPtr<UInputAction> MoveAction;
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> RunAction;
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	TObjectPtr<UInputAction> RageDashAction;
-	TSet<TWeakObjectPtr<AActor>> HitActorsThisDash;
+	
+
 	
 	UFUNCTION() 
 	void OnRageDashHit(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult); 
@@ -124,14 +127,7 @@ protected:
 	bool bIsWalking = false;
 	bool bIsRunning = false;
     bool bMovementInputBlocked = false;
-	
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Character State|Skills", meta=(AllowPrivateAccess="true"))
-	bool bIsRageDashing = false;
-	bool bIsRageDashOnCooldown = false;
-	FTimerHandle RageDashMovementTimer;
-	FTimerHandle RageDashCooldownTimer;
-	float OriginalMovementSpeed = 0.f; 
-	float OriginalGravity = 1.f;    
+
 
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
@@ -151,9 +147,7 @@ protected:
     
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Animation", meta=(AllowPrivateAccess = "true"))
 	TScriptInterface<ICharacterAnimationStateListener> AnimationStateListener;
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration | Skills")
-	TObjectPtr<UHeroRageDashSkillSettingsDA> RageDashSkillSettings;
-    
+
 	virtual void BeginPlay() override;
 	virtual void EndPlay(EEndPlayReason::Type EndPlayReason) override;
 	virtual void NotifyControllerChanged() override;
@@ -169,7 +163,7 @@ protected:
 	void OnRunCompleted(const FInputActionValue& Value);
 	void OnMoveTriggered(const FInputActionValue& Value);
 	void OnMoveCompleted(const FInputActionValue& Value);
-	void HandleRageDashInputTriggered(const FInputActionValue& Value);
+	
     
 	void InitializeMovementParameters();
 	void SetupCamera();
@@ -177,13 +171,7 @@ protected:
     void ApplyMovementSettings();
 	void CacheMovementSpeeds();
 	
-	bool CanExecuteRageDash() const; 
-	void TryExecuteRageDash();      
-	void ExecuteRageDash();         
-	
-	void EndRageDashMovement();     
-	void OnRageDashCooldownFinished();
-	void CancelRageDash();          
+	  
 
 	void HandleUpwardSweepInputTriggered(const FInputActionValue& Value);
 	bool CanExecuteUpwardSweep() const;

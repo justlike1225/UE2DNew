@@ -23,7 +23,8 @@ public:
 	// --- 原有方法 ---
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Animation State Listener")
 	void OnIntentStateChanged(bool bNewIsWalking, bool bNewIsRunning);
-
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Animation State Listener | Skills")
+	void OnRageDashEnded();
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Animation State Listener")
 	void OnDashStateChanged(bool bNewIsDashing);
 
