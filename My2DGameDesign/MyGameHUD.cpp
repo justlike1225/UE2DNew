@@ -1,38 +1,42 @@
-﻿
-// MyGameHUD.cpp
-#include "MyGameHUD.h"
-#include "Blueprint/UserWidget.h" // 需要包含 UserWidget 头文件
-#include "GameFramework/PlayerController.h" // 需要 PlayerController
-
+﻿#include "MyGameHUD.h"
+#include "Actors/PaperZDCharacter_SpriteHero.h"
+#include "Blueprint/UserWidget.h" 
+#include "Components/RageComponent.h"
+#include "GameFramework/PlayerController.h" 
+#include "Interfaces/UI/RageBarWidgetInterface.h"
+class URageComponent;
+void AMyGameHUD::HandleRageChanged(float CurrentRage, float MaxRage)
+{
+	if (CurrentPlayerHUDWidget && CurrentPlayerHUDWidget->GetClass()->ImplementsInterface(URageBarWidgetInterface::StaticClass()))
+	{
+		IRageBarWidgetInterface::Execute_UpdateRage(CurrentPlayerHUDWidget, CurrentRage, MaxRage);
+	}
+}
 void AMyGameHUD::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// 检查我们是否在编辑器中指定了要使用的控件蓝图类
 	if (PlayerHUDWidgetClass)
 	{
-		// 获取拥有此 HUD 的玩家控制器
 		APlayerController* PC = GetOwningPlayerController();
 		if (PC)
 		{
-			// 创建控件实例
 			CurrentPlayerHUDWidget = CreateWidget<UUserWidget>(PC, PlayerHUDWidgetClass);
-
-			// 检查控件是否成功创建
 			if (CurrentPlayerHUDWidget)
 			{
-				// 将控件添加到屏幕视口
 				CurrentPlayerHUDWidget->AddToViewport();
-				UE_LOG(LogTemp, Log, TEXT("Player HUD widget added to viewport."));
+			}
+			APaperZDCharacter_SpriteHero* Hero = Cast<APaperZDCharacter_SpriteHero>(PC->GetPawn());
+			URageComponent* RageComp = Hero ? Hero->GetRageComponent() : nullptr; 
+			if (RageComp && CurrentPlayerHUDWidget->GetClass()->ImplementsInterface(URageBarWidgetInterface::StaticClass()))
+			{
+				RageComp->OnRageChanged.AddDynamic(this, &AMyGameHUD::HandleRageChanged);
+				HandleRageChanged(RageComp->GetCurrentRage(), RageComp->GetMaxRage());
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Failed to create Player HUD widget."));
+				if (!RageComp) UE_LOG(LogTemp, Warning, TEXT("AMyGameHUD::BeginPlay - Could not find RageComponent on Player Pawn."));
+				if (!CurrentPlayerHUDWidget->GetClass()->ImplementsInterface(URageBarWidgetInterface::StaticClass())) UE_LOG(LogTemp, Warning, TEXT("AMyGameHUD::BeginPlay - Player HUD Widget does not implement IRageBarWidgetInterface."));
 			}
 		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("PlayerHUDWidgetClass is not set in AMyGameHUD defaults!"));
 	}
 }
