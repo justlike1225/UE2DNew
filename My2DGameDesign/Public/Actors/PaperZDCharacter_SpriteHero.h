@@ -28,6 +28,7 @@ class UPaperFlipbookComponent;
 class ICharacterAnimationStateListener;
 class UHeroRageDashSkillSettingsDA;
 class UHeroUpwardSweepSettingsDA;
+class UUpwardSweepComponent;
 struct FHitResult; 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnActionInterruptSignature);
@@ -48,8 +49,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="Character State")
 	bool IsMovementInputBlocked() const { return bMovementInputBlocked; }
 
-	bool IsPerformingUpwardSweep();
-	const UHeroUpwardSweepSettingsDA* GetUpwardSweepSettings();
+
 	void SetMovementInputBlocked(bool bCond){  bMovementInputBlocked = bCond; }
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Team")
@@ -57,8 +57,7 @@ public:
 	virtual FGenericTeamId GetGenericTeamId() const override { return TeamId; }
 	virtual ETeamAttitude::Type GetTeamAttitudeTowards(const AActor& Other) const override;
 
-	UFUNCTION(BlueprintCallable, Category="Skills|UpwardSweep")
-	void FinishUpwardSweep();
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration | Movement")
 	TObjectPtr<UCharacterMovementSettingsDA> MovementSettings;
 	virtual FVector GetFacingDirection_Implementation() const override;
@@ -107,7 +106,8 @@ protected:
 	TObjectPtr<UHealthComponent> HealthComponent; 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components | Rage", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<URageComponent> RageComponent;
-
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components | Skills", meta = (AllowPrivateAccess = "true")) // <--- 新增
+	TObjectPtr<UUpwardSweepComponent> UpwardSweepComponent; 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputMappingContext> PlayerMappingContext;
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
@@ -130,19 +130,11 @@ protected:
 
 
 
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	TObjectPtr<UInputAction> UpwardSweepAction; 
+	
 
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration | Skills")
-	TObjectPtr<UHeroUpwardSweepSettingsDA> UpwardSweepSettings; 
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Character State|Skills", meta=(AllowPrivateAccess="true"))
-	bool bIsPerformingUpwardSweep = false; 
+	
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Character State|Skills", meta=(AllowPrivateAccess="true"))
-	bool bIsUpwardSweepOnCooldown = false; 
-
-	FTimerHandle UpwardSweepCooldownTimer;
 	
     
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Animation", meta=(AllowPrivateAccess = "true"))
@@ -171,13 +163,8 @@ protected:
     void ApplyMovementSettings();
 	void CacheMovementSpeeds();
 	
-	  
-
-	void HandleUpwardSweepInputTriggered(const FInputActionValue& Value);
-	bool CanExecuteUpwardSweep() const;
-	void TryExecuteUpwardSweep();
-	void ExecuteUpwardSweep();
-	void OnUpwardSweepCooldownFinished();
+	
+	
 	UFUNCTION()
 	void HandleComboStarted();
 	UFUNCTION()

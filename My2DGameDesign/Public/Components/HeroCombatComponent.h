@@ -35,17 +35,7 @@ public:
 	/** 当地面连击序列开始时广播 */
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
 	FOnGroundComboStartedSignature OnGroundComboStarted;
-	/**
-	   * 由 "开始追踪" 的 AnimNotify 调用。
-	   * @param Duration 本次攻击判定的总持续时间（秒）。
-	   */
-	UFUNCTION(BlueprintCallable, Category="Combat|UpwardSweep|Trace") 
-	void StartSweepTrace(float Duration);
-	/**
-	 * 由 "结束追踪" 的 AnimNotify 调用 (或定时器内部调用)。
-	 */
-	UFUNCTION(BlueprintCallable, Category="Combat|UpwardSweep|Trace")
-	void StopSweepTrace();
+	
 	/** 当地面连击序列结束（完成、中断或重置）时广播 */
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
 	FOnGroundComboEndedSignature OnGroundComboEnded;
@@ -76,20 +66,7 @@ public:
 	UFUNCTION()
 	void HandleActionInterrupt();
 protected:
-	/**
-	 * 定义上扫攻击动画中，攻击判定点的【关键帧】相对偏移位置。
-	 * 需要与下面的 KeyframeTimes 数组一一对应。
-	 * 这些偏移量是相对于角色 Sprite 组件局部坐标系的。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|UpwardSweep|Keyframes", meta=(ToolTip="Keyframe relative offsets for the Upward Sweep attack point."))
-	TArray<FVector> UpwardSweepKeyframeOffsets;
-	/**
-	 * 定义上面每个关键帧偏移量对应的时间点 (归一化时间, 0.0 to 1.0)。
-	 * 必须与 KeyframeOffsets 数组大小相同且按时间顺序排列 (0.0代表判定开始, 1.0代表判定结束)。
-	 * 例如: [0.0, 0.3, 0.7, 1.0]
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|UpwardSweep|Keyframes", meta=(ToolTip="Normalized time points (0-1) corresponding to each keyframe offset. Must match size of KeyframeOffsets and be ordered."))
-	TArray<float> UpwardSweepKeyframeTimes;
+	
 	/** @brief 用于普通攻击的盒子碰撞体 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Collision", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UBoxComponent> AttackHitBox;
@@ -157,23 +134,8 @@ private:
 	float CurrentSwordBeamInitialSpeed = 1200.0f;
 	float CurrentSwordBeamDamage = 10.0f;
 	float CurrentSwordBeamLifeSpan = 2.0f;
-	/** 存储上一次 Tick 时计算出的攻击点的世界坐标 */
-	FVector PreviousAttackPointWorldLocation;
-	/** 标记当前是否处于由 AnimNotifyState 控制的攻击追踪状态 */
-	bool bIsTrackingAttackPoint = false;
-	/** 存储在单次上扫动画期间已经击中过的 Actor，防止重复造成伤害 */
-	UPROPERTY()
-	TSet<TObjectPtr<AActor>> HitActorsThisSweep;
-	/** 存储 NotifyState 开始的时间，用于计算归一化时间 */
-	float AttackTraceStartTime = 0.0f;
-	/** 存储 NotifyState 的总持续时间 */
-	float AttackTraceDuration = 0.0f;
-	/**
-		 * 由 AttackTraceTimerHandle 定时器重复调用的函数，执行单次轨迹检测。
-		 */
-	UFUNCTION() 
-	void PerformSweepTraceTick();
-	FVector GetInterpolatedOffset(float NormalizedTime) const;
+	
+
 	UPROPERTY()
 	TWeakObjectPtr<UPrimitiveComponent> ActiveAttackCollisionShape;
 	FTimerHandle AttackTraceTimerHandle;

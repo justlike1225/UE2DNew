@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/ActorComponent.h"
 #include "Interfaces/InputBindingComponent.h" // 包含输入绑定接口
 #include "InputActionValue.h" // 包含 FInputActionValue

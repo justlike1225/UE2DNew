@@ -2,7 +2,6 @@
 #include "Actors/PaperZDCharacter_SpriteHero.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/RageComponent.h"
-#include "Components/CapsuleComponent.h"
 #include "DataAssets/HeroDA/HeroRageDashSkillSettingsDA.h"
 #include "EnhancedInputComponent.h"
 #include "TimerManager.h"
@@ -10,7 +9,6 @@
 #include "Engine/World.h"
 #include "Interfaces/AnimationListener/CharacterAnimationStateListener.h"
 #include "Interfaces/FacingDirectionProvider.h" 
-#include "Interfaces/ActionInterruptSource.h"  
 #include "Interfaces/Damageable.h"           
 #include "Utils/CombatGameplayStatics.h"     
 URageDashComponent::URageDashComponent()
