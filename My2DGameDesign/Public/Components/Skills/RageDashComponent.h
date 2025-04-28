@@ -51,7 +51,8 @@ public:
 
     // --- IInputBindingComponent 接口实现 ---
     virtual void BindInputActions_Implementation(UEnhancedInputComponent* EnhancedInputComponent) override;
-
+    UFUNCTION(BlueprintPure, Category="Rage Dash|Status")
+    float GetCooldownRemaining() const;
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

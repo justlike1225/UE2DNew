@@ -201,6 +201,15 @@ void URageDashComponent::OnRageDashCooldownFinished()
 {
 	bIsRageDashOnCooldown = false;
 }
+
+float URageDashComponent:: GetCooldownRemaining() const
+{
+	if (GetWorldTimerManager().IsTimerActive(RageDashCooldownTimer))
+	{
+		return GetWorldTimerManager().GetTimerRemaining(RageDashCooldownTimer);
+	}
+	return 0.f;
+}
 void URageDashComponent::CancelRageDash()
 {
 	if (!bIsRageDashing) return;
