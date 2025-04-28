@@ -18,6 +18,9 @@ class URageComponent;
 class UCapsuleComponent;
 class ICharacterAnimationStateListener;
 template <class InterfaceType> class TScriptInterface; // 用于动画监听器
+// RageDashComponent.h
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRageDashCooldownTick, float, RemainingTime);
+
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class MY2DGAMEDESIGN_API URageDashComponent : public UActorComponent, public IInputBindingComponent
@@ -48,7 +51,9 @@ public:
     /** 由外部（如 Hero 的 ActionInterrupt）调用以取消冲刺 */
     UFUNCTION(BlueprintCallable, Category = "Rage Dash | Actions")
     void CancelRageDash();
-
+    UPROPERTY(BlueprintAssignable, Category="Rage Dash|Events")
+    FOnRageDashCooldownTick OnCooldownTick;
+    FTimerHandle CooldownTickTimer;
     // --- IInputBindingComponent 接口实现 ---
     virtual void BindInputActions_Implementation(UEnhancedInputComponent* EnhancedInputComponent) override;
     UFUNCTION(BlueprintPure, Category="Rage Dash|Status")
@@ -102,6 +107,7 @@ private:
     TScriptInterface<ICharacterAnimationStateListener> OwnerAnimListenerCached;
     // --- 内部函数 ---
     void ExecuteRageDash();
+    void BroadcastCooldownTick();
     void EndRageDashMovement();
     UFUNCTION() // 定时器回调需要 UFUNCTION()
     void OnRageDashCooldownFinished();

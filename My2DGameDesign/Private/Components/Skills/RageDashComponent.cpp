@@ -5,17 +5,20 @@
 #include "DataAssets/HeroDA/HeroRageDashSkillSettingsDA.h"
 #include "EnhancedInputComponent.h"
 #include "TimerManager.h"
+#include "Components/DashComponent.h"
 #include "Components/HealthComponent.h"
 #include "Engine/World.h"
 #include "Interfaces/AnimationListener/CharacterAnimationStateListener.h"
-#include "Interfaces/FacingDirectionProvider.h" 
-#include "Interfaces/Damageable.h"           
-#include "Utils/CombatGameplayStatics.h"     
+#include "Interfaces/FacingDirectionProvider.h"
+#include "Interfaces/Damageable.h"
+#include "Utils/CombatGameplayStatics.h"
+
 URageDashComponent::URageDashComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(false);
 }
+
 void URageDashComponent::BeginPlay()
 {
 	Super::BeginPlay();
@@ -43,12 +46,12 @@ void URageDashComponent::BeginPlay()
 	{
 		UE_LOG(LogTemp, Error, TEXT("RageDashComponent on %s requires a UCharacterMovementComponent!"),
 		       *GetNameSafe(GetOwner()));
-		SetActive(false); 
+		SetActive(false);
 	}
 	if (!OwnerRageComponent.IsValid())
 	{
 		UE_LOG(LogTemp, Error, TEXT("RageDashComponent on %s requires a URageComponent!"), *GetNameSafe(GetOwner()));
-		SetActive(false); 
+		SetActive(false);
 	}
 	if (!RageDashSkillSettings)
 	{
@@ -71,6 +74,7 @@ void URageDashComponent::BeginPlay()
 		       ), *GetNameSafe(GetOwner()));
 	}
 }
+
 void URageDashComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (GetWorld())
@@ -87,6 +91,7 @@ void URageDashComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	Super::EndPlay(EndPlayReason);
 }
+
 void URageDashComponent::BindInputActions_Implementation(UEnhancedInputComponent* EnhancedInputComponent)
 {
 	if (EnhancedInputComponent && RageDashAction)
@@ -100,10 +105,12 @@ void URageDashComponent::BindInputActions_Implementation(UEnhancedInputComponent
 		                            TEXT("RageDashComponent: RageDashAction is not set in configuration!"));
 	}
 }
+
 void URageDashComponent::HandleRageDashInputTriggered(const FInputActionValue& Value)
 {
 	TryExecuteRageDash();
 }
+
 bool URageDashComponent::CanRageDash() const
 {
 	if (!RageDashSkillSettings || !OwnerRageComponent.IsValid() || !OwnerMovementComponent.IsValid() || !OwnerHero.
@@ -111,11 +118,11 @@ bool URageDashComponent::CanRageDash() const
 	{
 		return false;
 	}
-	if (!OwnerMovementComponent->IsMovingOnGround())
+	if (!OwnerMovementComponent->IsMovingOnGround()||OwnerHero->GetDashComponent()->IsDashing())
 	{
 		return false;
 	}
-	UHealthComponent* HealthComp = OwnerHero->GetHealthComponent(); 
+	UHealthComponent* HealthComp = OwnerHero->GetHealthComponent();
 	if (bIsRageDashing || bIsRageDashOnCooldown || OwnerHero->IsMovementInputBlocked() || (HealthComp && HealthComp->
 		IsDead()))
 	{
@@ -125,8 +132,9 @@ bool URageDashComponent::CanRageDash() const
 	{
 		return false;
 	}
-	return true; 
+	return true;
 }
+
 void URageDashComponent::TryExecuteRageDash()
 {
 	if (CanRageDash())
@@ -134,23 +142,36 @@ void URageDashComponent::TryExecuteRageDash()
 		ExecuteRageDash();
 	}
 }
+
 void URageDashComponent::ExecuteRageDash()
 {
 	if (!ensure(
 		RageDashSkillSettings && OwnerRageComponent.IsValid() && OwnerMovementComponent.IsValid() && OwnerHero.IsValid()
-		))
+	))
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
-			TEXT("RageDashComponent: ExecuteRageDash failed due to missing dependencies!"));
+		                                 TEXT(
+			                                 "RageDashComponent: ExecuteRageDash failed due to missing dependencies!"));
 		return;
 	}
 	OwnerRageComponent->ConsumeRage(RageDashSkillSettings->RageCost);
 	bIsRageDashing = true;
 	bIsRageDashOnCooldown = true;
 	OwnerHero->SetMovementInputBlocked(true);
-	GetWorldTimerManager().SetTimer(RageDashCooldownTimer, this,
-	                                &URageDashComponent::OnRageDashCooldownFinished,
-	                                RageDashSkillSettings->Cooldown, false);
+
+	GetWorldTimerManager().SetTimer(
+		CooldownTickTimer,
+		FTimerDelegate::CreateUObject(this, &URageDashComponent::BroadcastCooldownTick),
+		0.1f, /*循环*/ true
+	);
+
+	GetWorldTimerManager().SetTimer(
+		RageDashCooldownTimer, this,
+		&URageDashComponent::OnRageDashCooldownFinished,
+		RageDashSkillSettings->Cooldown, false
+	);
+	
+
 
 	if (auto Listener = GetAnimListener())
 	{
@@ -158,24 +179,37 @@ void URageDashComponent::ExecuteRageDash()
 	}
 	OriginalMovementSpeed = OwnerMovementComponent->MaxWalkSpeed;
 	OriginalGravity = OwnerMovementComponent->GravityScale;
-	OwnerMovementComponent->StopMovementKeepPathing(); 
+	OwnerMovementComponent->StopMovementKeepPathing();
 }
+
+void URageDashComponent::BroadcastCooldownTick()
+{
+	float Remain = GetCooldownRemaining();
+	OnCooldownTick.Broadcast(Remain);
+	if (Remain <= 0.f)
+	{
+		GetWorldTimerManager().ClearTimer(CooldownTickTimer);
+	}
+}
+
 void URageDashComponent::ExecuteRageDashMovement()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
-		TEXT("RageDashComponent: ExecuteRageDashMovement called!"));
-	if (!bIsRageDashing || !RageDashSkillSettings || !OwnerMovementComponent.IsValid() || !OwnerHero.IsValid()) {
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, 
-			TEXT("RageDashComponent: ExecuteRageDashMovement failed due to missing dependencies!"));
+	                                 TEXT("RageDashComponent: ExecuteRageDashMovement called!"));
+	if (!bIsRageDashing || !RageDashSkillSettings || !OwnerMovementComponent.IsValid() || !OwnerHero.IsValid())
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
+		                                 TEXT(
+			                                 "RageDashComponent: ExecuteRageDashMovement failed due to missing dependencies!"));
 		return;
 	}
 	OwnerMovementComponent->GravityScale = 0.0f;
-	FVector DashDirection = FVector::ForwardVector; 
+	FVector DashDirection = FVector::ForwardVector;
 	if (IFacingDirectionProvider* FacingProvider = Cast<IFacingDirectionProvider>(OwnerHero.Get()))
 	{
 		DashDirection = FacingProvider->Execute_GetFacingDirection(OwnerHero.Get());
 	}
-	else 
+	else
 	{
 		DashDirection = OwnerHero->GetActorForwardVector();
 	}
@@ -184,12 +218,13 @@ void URageDashComponent::ExecuteRageDashMovement()
 	GetWorldTimerManager().SetTimer(RageDashMovementTimer, this, &URageDashComponent::EndRageDashMovement,
 	                                RageDashSkillSettings->DashDuration, false);
 }
+
 void URageDashComponent::EndRageDashMovement()
 {
 	if (!bIsRageDashing || !OwnerMovementComponent.IsValid() || !OwnerHero.IsValid()) return;
-	OwnerMovementComponent->Velocity = FVector::ZeroVector; 
-	OwnerMovementComponent->GravityScale = OriginalGravity; 
-	OwnerHero->SetMovementInputBlocked(false); 
+	OwnerMovementComponent->Velocity = FVector::ZeroVector;
+	OwnerMovementComponent->GravityScale = OriginalGravity;
+	OwnerHero->SetMovementInputBlocked(false);
 	bIsRageDashing = false;
 	TScriptInterface<ICharacterAnimationStateListener> Listener = GetAnimListener();
 	if (Listener)
@@ -197,12 +232,13 @@ void URageDashComponent::EndRageDashMovement()
 		Listener->Execute_OnRageDashEnded(Listener.GetObject());
 	}
 }
+
 void URageDashComponent::OnRageDashCooldownFinished()
 {
 	bIsRageDashOnCooldown = false;
 }
 
-float URageDashComponent:: GetCooldownRemaining() const
+float URageDashComponent::GetCooldownRemaining() const
 {
 	if (GetWorldTimerManager().IsTimerActive(RageDashCooldownTimer))
 	{
@@ -210,21 +246,22 @@ float URageDashComponent:: GetCooldownRemaining() const
 	}
 	return 0.f;
 }
+
 void URageDashComponent::CancelRageDash()
 {
 	if (!bIsRageDashing) return;
 	GetWorldTimerManager().ClearTimer(RageDashMovementTimer);
 	if (OwnerMovementComponent.IsValid())
 	{
-		OwnerMovementComponent->StopMovementKeepPathing(); 
-		OwnerMovementComponent->GravityScale = OriginalGravity; 
+		OwnerMovementComponent->StopMovementKeepPathing();
+		OwnerMovementComponent->GravityScale = OriginalGravity;
 	}
 	if (OwnerHero.IsValid()) OwnerHero->SetMovementInputBlocked(false);
 	bIsRageDashing = false;
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
-		TEXT("RageDashComponent: Rage Dash cancelled!"));
-
+	                                 TEXT("RageDashComponent: Rage Dash cancelled!"));
 }
+
 void URageDashComponent::HandleRageDashHit(AActor* OtherActor, UPrimitiveComponent* OtherComp,
                                            const FHitResult& SweepResult)
 {
@@ -248,6 +285,7 @@ void URageDashComponent::HandleRageDashHit(AActor* OtherActor, UPrimitiveCompone
 		}
 	}
 }
+
 TScriptInterface<ICharacterAnimationStateListener> URageDashComponent::GetAnimListener() const
 {
 	if (OwnerAnimListenerCached) return OwnerAnimListenerCached;
@@ -260,6 +298,7 @@ TScriptInterface<ICharacterAnimationStateListener> URageDashComponent::GetAnimLi
 	}
 	return nullptr;
 }
+
 FTimerManager& URageDashComponent::GetWorldTimerManager() const
 {
 	return GetWorld()->GetTimerManager();

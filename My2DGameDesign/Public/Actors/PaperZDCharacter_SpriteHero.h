@@ -82,6 +82,8 @@ public:
 	UHealthComponent* GetHealthComponent() const { return HealthComponent; }
 	UFUNCTION(BlueprintPure, Category = "Components | Rage")
 	URageComponent* GetRageComponent() const { return RageComponent; }
+	UFUNCTION(BlueprintPure, Category = "Components | WpSwp")
+	UUpwardSweepComponent* GetUpSwpComponent() const { return UpwardSweepComponent; }
 
 	
 	virtual TScriptInterface<ICharacterAnimationStateListener> GetAnimStateListener_Implementation() const override;

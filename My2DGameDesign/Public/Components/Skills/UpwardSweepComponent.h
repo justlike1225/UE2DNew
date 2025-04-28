@@ -15,6 +15,8 @@ class ICharacterAnimationStateListener;
 class UPrimitiveComponent;
 template <class InterfaceType> class TScriptInterface;
 struct FHitResult;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUpWardSweepCooldownTick, float, RemainingTime);
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class MY2DGAMEDESIGN_API UUpwardSweepComponent : public UActorComponent, public IInputBindingComponent
 {
@@ -34,6 +36,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Skill | Upward Sweep | AnimNotify")
     void FinishUpwardSweep(); 
     virtual void BindInputActions_Implementation(UEnhancedInputComponent* EnhancedInputComponent) override;
+    UFUNCTION(BlueprintPure, Category="UpwardSweep | Status")
+    float GetCooldownRemaining() const;
+    void BroadcastCooldownTick();
+    UPROPERTY(BlueprintAssignable, Category="Rage Dash|Events")
+    FOnUpWardSweepCooldownTick OnUpswpCooldownTick;
+    FTimerHandle CooldownTickTimer;
+
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

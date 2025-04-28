@@ -89,6 +89,26 @@ void UUpwardSweepComponent::BindInputActions_Implementation(UEnhancedInputCompon
         if (!UpwardSweepAction) UE_LOG(LogTemp, Warning, TEXT("UpwardSweepComponent: UpwardSweepAction is not set in configuration!"));
     }
 }
+
+float UUpwardSweepComponent::GetCooldownRemaining() const
+{
+    if (GetWorldTimerManager().IsTimerActive(UpwardSweepCooldownTimer))
+    {
+        return GetWorldTimerManager().GetTimerRemaining(UpwardSweepCooldownTimer);
+    }
+    return 0.f;
+}
+
+
+void UUpwardSweepComponent::BroadcastCooldownTick()
+{
+    float Remain = GetCooldownRemaining();
+    OnUpswpCooldownTick.Broadcast(Remain);
+    if (Remain <= 0.f)
+    {
+        GetWorldTimerManager().ClearTimer(CooldownTickTimer);
+    }
+}
 void UUpwardSweepComponent::HandleUpwardSweepInputTriggered(const FInputActionValue& Value)
 {
     TryExecuteUpwardSweep();
@@ -135,9 +155,7 @@ void UUpwardSweepComponent::TryExecuteUpwardSweep()
     {
         ExecuteUpwardSweep();
     }
-     else
-    {
-    }
+  
 }
 void UUpwardSweepComponent::ExecuteUpwardSweep()
 {
@@ -153,6 +171,11 @@ void UUpwardSweepComponent::ExecuteUpwardSweep()
     GetWorldTimerManager().SetTimer(UpwardSweepCooldownTimer, this,
                                 &UUpwardSweepComponent::OnUpwardSweepCooldownFinished,
                                 UpwardSweepSettings->Cooldown, false);
+    GetWorldTimerManager().SetTimer(
+    CooldownTickTimer,
+    FTimerDelegate::CreateUObject(this, &UUpwardSweepComponent::BroadcastCooldownTick),
+    0.1f, /*循环*/ true
+);
     OwnerMovementComponent->StopMovementKeepPathing();
     OwnerMovementComponent->Velocity = FVector::ZeroVector; 
     if (IActionInterruptSource* InterruptSource = Cast<IActionInterruptSource>(OwnerHero.Get()))
