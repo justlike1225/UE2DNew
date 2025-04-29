@@ -6,22 +6,21 @@
 #include "EnhancedInputComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Blueprint/UserWidget.h"
-#include "GameFramework/InputSettings.h" // For FInputModeGameAndUI / FInputModeGameOnly
+#include "My2DGameDesign/MyGameInstance.h"
 
 void AMyPlayerController::BeginPlay()
 {
     Super::BeginPlay();
 
-    // 添加输入映射上下文
     if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
     {
-         // 确保先清除可能存在的旧映射，或者根据需要调整优先级
-         // Subsystem->ClearAllMappings(); // 谨慎使用，可能会清除其他映射
-         if (DefaultMappingContext)
-         {
-             Subsystem->AddMappingContext(DefaultMappingContext, 0); // 优先级 0
-         }
+        if (DefaultMappingContext)
+        {
+            Subsystem->AddMappingContext(DefaultMappingContext, 0);
+        }
     }
+
+  
 }
 
 void AMyPlayerController::SetupInputComponent()
@@ -112,4 +111,25 @@ void AMyPlayerController::ResumeGame()
 
         UE_LOG(LogTemp, Log, TEXT("Game Resumed"));
     }
+}
+
+
+void AMyPlayerController::OnPossess(APawn* InPawn)
+{
+    Super::OnPossess(InPawn);
+    
+    UMyGameInstance* GI = Cast<UMyGameInstance>(GetGameInstance());
+    if (GI && GI->GetLoadedSaveData())
+    {
+        GI->ApplyLoadedDataToPlayer();
+        GEngine->AddOnScreenDebugMessage (-1, 5.f, FColor::Green,TEXT(" GI->ApplyLoadedDataToPlayer();!")
+            );
+        
+      
+    }
+    else
+    {
+        GEngine->AddOnScreenDebugMessage (-1, 5.f, FColor::Red,TEXT("wushuju"));
+    }
+   
 }

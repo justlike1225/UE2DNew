@@ -30,7 +30,8 @@ class MY2DGAMEDESIGN_API UHealthComponent : public UActorComponent
 public:
 	// 构造函数
 	UHealthComponent();
-
+	UFUNCTION(BlueprintCallable, Category="Health|Actions")
+	void RestoreHealth(float NewHealth, float NewMaxHealth);
 	/**
 	 * @brief 公开的函数，用于对拥有此组件的 Actor 施加伤害。
 	 * 这是处理伤害的主要入口点。

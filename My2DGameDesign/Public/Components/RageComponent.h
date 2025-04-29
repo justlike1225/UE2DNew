@@ -13,7 +13,8 @@ class MY2DGAMEDESIGN_API URageComponent : public UActorComponent
 
 public:
 	URageComponent();
-
+	UFUNCTION(BlueprintCallable, Category="Rage")
+	void RestoreRage(float NewRage, float NewMaxRage);
 	/**
 	 * @brief 尝试增加怒气值。
 	 * @param Amount 要增加的怒气量。

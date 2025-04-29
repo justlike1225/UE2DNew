@@ -5,7 +5,17 @@
 URageComponent::URageComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false; 
-	SetIsReplicatedByDefault(false); 
+	SetIsReplicatedByDefault(false);
+	MaxRage = FMath::Max(0.1f, MaxRage); 
+	CurrentRage =100.0f;
+}
+
+void URageComponent::RestoreRage(float NewRage, float NewMaxRage)
+{
+	MaxRage = FMath::Max(0.1f, NewMaxRage);
+	CurrentRage = FMath::Clamp(NewRage, 0.0f, NewMaxRage);
+	
+	OnRageChanged.Broadcast(NewRage, NewMaxRage); // 通知UI更新
 }
 
 void URageComponent::BeginPlay()
@@ -13,8 +23,7 @@ void URageComponent::BeginPlay()
 	Super::BeginPlay();
 
 	
-	MaxRage = FMath::Max(0.1f, MaxRage); 
-	CurrentRage =100.0f;
+
 
 	
 	OnRageChanged.Broadcast(CurrentRage, MaxRage);

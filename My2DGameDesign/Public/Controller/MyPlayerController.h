@@ -44,4 +44,5 @@ public:
     // 恢复游戏 (公开，以便 WBP_PauseMenu 可以调用)
     UFUNCTION(BlueprintCallable, Category = "Game")
     void ResumeGame();
+    virtual void OnPossess(APawn* InPawn) override;
 };
