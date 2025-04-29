@@ -9,6 +9,7 @@
 #include "Templates/SubclassOf.h"
 #include "EnemyCharacterBase.generated.h"
 
+class ADamageNumberActor;
 class UEnemyAISettingsDA;
 class UBehaviorTree;
 class UHealthComponent;
@@ -70,7 +71,8 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UHealthComponent> HealthComponent;
-
+	UPROPERTY(EditDefaultsOnly, Category = "Effects")
+	TSubclassOf<ADamageNumberActor> DamageNumberActorClass;
 	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category="Animation",
 		meta=(AllowPrivateAccess = "true"))
 	TWeakObjectPtr<UPaperZDAnimInstance> CachedAnimInstancePtr;

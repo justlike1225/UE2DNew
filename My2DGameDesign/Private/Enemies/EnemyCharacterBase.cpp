@@ -5,10 +5,12 @@
 #include "PaperZDAnimInstance.h"
 #include "AIController.h"
 #include "BrainComponent.h"
+#include "Actors/DamageNumberActor.h"
 #include "AI/AIC/EnemyAIControllerBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "DataAssets/CharacterMovementSettingsDA.h"
 #include "Interfaces/AnimationListener//EnemyMovementAnimListener.h"
 #include "Interfaces/AnimationListener//EnemyStateAnimListener.h"
@@ -16,6 +18,8 @@
 #include "Interfaces/AnimationListener//EnemyRangedAttackAnimListener.h"
 #include "Interfaces/AnimationListener//EnemyTeleportAnimListener.h"
 #include "Interfaces/UI/HealthBarWidgetInterface.h"
+
+class ADamageNumberActor;
 
 AEnemyCharacterBase::AEnemyCharacterBase()
 {
@@ -175,7 +179,28 @@ float AEnemyCharacterBase::ApplyDamage_Implementation(float DamageAmount, AActor
 	}
 
 	float ActualDamage = HealthComponent->TakeDamage(DamageAmount, DamageCauser, InstigatorController);
+	if (ActualDamage > 0.f && DamageNumberActorClass) // 检查伤害 > 0 并且类已设置
+	{
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			// 在角色头顶上方一点的位置生成
+			FVector SpawnLocation = GetActorLocation() + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + 10.0f);
+			FRotator SpawnRotation = FRotator::ZeroRotator; // 对于屏幕空间的 Widget，旋转通常不重要
 
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Owner = this;
+			SpawnParams.Instigator = GetInstigator(); // 可以传递攻击者
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+			ADamageNumberActor* DamageActor = World->SpawnActor<ADamageNumberActor>(DamageNumberActorClass, SpawnLocation, SpawnRotation, SpawnParams);
+			if (DamageActor)
+			{
+				DamageActor->SetDamageText(FMath::RoundToInt(ActualDamage),FColor::White); // 设置伤害数字
+				
+			}
+		}
+	}
 	if (ActualDamage > 0.f && !HealthComponent->IsDead())
 	{
 		TScriptInterface<IEnemyStateAnimListener> StateListener = IEnemySpecificAnimListenerProvider::Execute_GetStateAnimListener(this);

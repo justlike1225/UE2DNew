@@ -29,6 +29,7 @@ class ICharacterAnimationStateListener;
 class UHeroRageDashSkillSettingsDA;
 class UHeroUpwardSweepSettingsDA;
 class UUpwardSweepComponent;
+class ADamageNumberActor;
 struct FHitResult; 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnActionInterruptSignature);
@@ -109,7 +110,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components | Rage", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<URageComponent> RageComponent;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components | Skills", meta = (AllowPrivateAccess = "true")) // <--- 新增
-	TObjectPtr<UUpwardSweepComponent> UpwardSweepComponent; 
+	TObjectPtr<UUpwardSweepComponent> UpwardSweepComponent;
+	UPROPERTY(EditDefaultsOnly, Category = "Effects")
+	TSubclassOf<ADamageNumberActor> DamageNumberActorClass;
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputMappingContext> PlayerMappingContext;
 	UPROPERTY(EditDefaultsOnly, Category = "Input")

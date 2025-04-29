@@ -5,6 +5,7 @@
 #include "PaperFlipbookComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "PaperZDAnimationComponent.h"
+#include "Actors/DamageNumberActor.h"
 #include "AniInstance/HeroPaperZDAnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/DashComponent.h"
@@ -584,8 +585,32 @@ float APaperZDCharacter_SpriteHero::ApplyDamage_Implementation(float DamageAmoun
 
 
 	float ActualDamage = HealthComponent->TakeDamage(DamageAmount, DamageCauser, InstigatorController);
+	
+	if (ActualDamage > 0.f && DamageNumberActorClass) // 检查伤害 > 0 并且类已设置
+	{
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			// 在角色头顶上方一点的位置生成
+			FVector SpawnLocation = GetActorLocation() + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + 10.0f);
+			FRotator SpawnRotation = FRotator::ZeroRotator; // 对于屏幕空间的 Widget，旋转通常不重要
+
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Owner = this;
+			SpawnParams.Instigator = GetInstigator(); // 可以传递攻击者
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+			ADamageNumberActor* DamageActor = World->SpawnActor<ADamageNumberActor>(DamageNumberActorClass, SpawnLocation, SpawnRotation, SpawnParams);
+			if (DamageActor)
+			{
+				DamageActor->SetDamageText(FMath::RoundToInt(ActualDamage),FColor::Red); // 设置伤害数字
+				// 可选：给 Actor 一个小的随机初始速度或偏移，让数字出现位置不完全重叠
+			}
+		}
+	}
 
 
+	
 	if (ActualDamage > 0.f && !HealthComponent->IsDead())
 	{
 		bool bShouldInterrupt = true;
@@ -620,7 +645,7 @@ float APaperZDCharacter_SpriteHero::ApplyDamage_Implementation(float DamageAmoun
 			}
 		}
 	}
-
+	
 	return ActualDamage;
 }
 void APaperZDCharacter_SpriteHero::OnRageDashHit(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -641,7 +666,7 @@ void APaperZDCharacter_SpriteHero::HandleDeath(AActor* Killer)
 	if (PC)
 	{
 		DisableInput(PC);
-		UE_LOG(LogTemp, Log, TEXT("Hero input disabled."));
+		
 	}
 
 
@@ -657,13 +682,9 @@ void APaperZDCharacter_SpriteHero::HandleDeath(AActor* Killer)
 	if (Listener)
 	{
 		Listener->Execute_OnDeathState(Listener.GetObject(), Killer);
-		UE_LOG(LogTemp, Log, TEXT("HandleDeath: Notified Animation Listener OnDeathState."));
+		
 	}
-	else
-	{
-		UE_LOG(LogTemp, Warning,
-		       TEXT("HandleDeath: Could not get CharacterAnimationStateListener to notify OnDeathState."));
-	}
+
 }
 
 
